@@ -1,0 +1,22 @@
+# cert-manager installation reference
+# The actual installation is done by the GitHub Actions workflow
+# using the official release manifests
+#
+# Version: v1.13.3
+# Install command:
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
+#
+# After installation, wait for pods to be ready:
+#   kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s
+#   kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=120s
+#
+# Then apply the ClusterIssuers:
+#   envsubst < cluster-issuers.yaml | kubectl apply -f -
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert-manager-config
+  namespace: cert-manager
+data:
+  version: "v1.13.3"

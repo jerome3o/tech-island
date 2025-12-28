@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world
+  labels:
+    app: hello-world
+  annotations:
+    # OAuth2-proxy authentication
+    nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.oauth2-proxy.svc.cluster.local:4180/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,X-Auth-Request-Groups"
+
+    # Allow health endpoint without auth
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      location = /health {
+        proxy_pass http://upstream_balancer;
+        proxy_set_header Host $host;
+      }
+spec:
+  ingressClassName: nginx
+  rules:
+    # Replace INGRESS_IP with actual IP after deployment
+    - host: hello-world.INGRESS_IP.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-world
+                port:
+                  number: 80

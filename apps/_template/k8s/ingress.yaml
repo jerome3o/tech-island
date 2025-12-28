@@ -1,0 +1,45 @@
+# Ingress with oauth2-proxy authentication
+#
+# Replace APP_NAME with your app name
+# Replace INGRESS_IP with the actual ingress IP (or use a real domain)
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-template
+  labels:
+    app: app-template
+  annotations:
+    # OAuth2-proxy authentication
+    nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.oauth2-proxy.svc.cluster.local:4180/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,X-Auth-Request-Groups"
+
+    # Skip auth for health endpoint
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ($request_uri = "/health") {
+        return 200 '{"status":"ok"}';
+      }
+
+    # TLS with cert-manager (uncomment when using real domain)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # Uncomment for TLS
+  # tls:
+  #   - hosts:
+  #       - app-template.example.com
+  #     secretName: app-template-tls
+  rules:
+    # Using nip.io for automatic DNS
+    # Replace INGRESS_IP with actual IP
+    - host: app-template.INGRESS_IP.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-template
+                port:
+                  number: 80

@@ -1,0 +1,22 @@
+# This file pulls in the official ingress-nginx manifests
+# We use a Job to apply them, allowing for easy updates
+#
+# To update ingress-nginx:
+# 1. Update the NGINX_VERSION below
+# 2. Push to main branch
+# 3. The platform workflow will apply the new version
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-installer
+  namespace: ingress-nginx
+data:
+  # Version of ingress-nginx to install
+  # Check releases at: https://github.com/kubernetes/ingress-nginx/releases
+  version: "v1.9.4"
+
+---
+# We apply the official manifests directly
+# This is done by the GitHub Actions workflow using:
+# kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml

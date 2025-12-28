@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ingress-nginx
+
+resources:
+  - namespace.yaml
+  # Official ingress-nginx manifests - applied separately in workflow
+  # - https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml
+
+# Patches to customize ingress-nginx for our setup
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: ingress-nginx-controller
+        namespace: ingress-nginx
+        annotations:
+          # Use the static IP created by Terraform
+          # This annotation tells GCP to use the specified IP
+          kubernetes.io/ingress-global-static-ip-name: "tech-island-ingress-ip"
+    target:
+      kind: Service
+      name: ingress-nginx-controller

@@ -1,0 +1,14 @@
+# Copy this file to terraform.tfvars and fill in your values
+# Do NOT commit terraform.tfvars to git (it may contain secrets)
+
+# Required: Your GCP project ID
+project_id = "your-gcp-project-id"
+
+# Optional: Override defaults
+# region           = "europe-west2"  # London
+# cluster_name     = "tech-island"
+# environment      = "prod"
+# gke_num_nodes    = 2
+# gke_machine_type = "e2-medium"
+# enable_cloud_sql = true
+# db_tier          = "db-f1-micro"

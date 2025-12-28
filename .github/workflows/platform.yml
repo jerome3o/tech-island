@@ -1,0 +1,167 @@
+name: Platform Components
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'platform/**'
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'Component to deploy (or "all")'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ingress-nginx
+          - cert-manager
+          - oauth2-proxy
+
+env:
+  INGRESS_NGINX_VERSION: "v1.9.4"
+  CERT_MANAGER_VERSION: "v1.13.3"
+
+jobs:
+  deploy-platform:
+    name: Deploy Platform Components
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
+          location: ${{ secrets.GKE_CLUSTER_LOCATION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      # ===== INGRESS-NGINX =====
+      - name: Deploy ingress-nginx
+        if: inputs.component == 'all' || inputs.component == 'ingress-nginx' || github.event_name == 'push'
+        run: |
+          echo "=== Deploying ingress-nginx ${{ env.INGRESS_NGINX_VERSION }} ==="
+
+          # Apply official manifests
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${{ env.INGRESS_NGINX_VERSION }}/deploy/static/provider/cloud/deploy.yaml
+
+          # Wait for controller to be ready
+          echo "Waiting for ingress-nginx controller..."
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s || echo "Timeout waiting for ingress-nginx, continuing..."
+
+          # Patch to use static IP (if exists)
+          if kubectl get globaladdress tech-island-ingress-ip --project ${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+            echo "Patching ingress-nginx to use static IP..."
+            kubectl patch svc ingress-nginx-controller -n ingress-nginx \
+              -p '{"metadata":{"annotations":{"kubernetes.io/ingress-global-static-ip-name":"tech-island-ingress-ip"}}}'
+          fi
+
+      # ===== CERT-MANAGER =====
+      - name: Deploy cert-manager
+        if: inputs.component == 'all' || inputs.component == 'cert-manager' || github.event_name == 'push'
+        run: |
+          echo "=== Deploying cert-manager ${{ env.CERT_MANAGER_VERSION }} ==="
+
+          # Apply official manifests
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/${{ env.CERT_MANAGER_VERSION }}/cert-manager.yaml
+
+          # Wait for cert-manager to be ready
+          echo "Waiting for cert-manager..."
+          kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s || true
+          kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=120s || true
+          kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=120s || true
+
+          # Give webhook time to start
+          sleep 10
+
+          # Apply ClusterIssuers
+          echo "Applying ClusterIssuers..."
+          export LETSENCRYPT_EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
+          envsubst < platform/cert-manager/cluster-issuers.yaml | kubectl apply -f -
+
+      # ===== OAUTH2-PROXY =====
+      - name: Deploy oauth2-proxy
+        if: inputs.component == 'all' || inputs.component == 'oauth2-proxy' || github.event_name == 'push'
+        run: |
+          echo "=== Deploying oauth2-proxy ==="
+
+          # Create namespace
+          kubectl apply -f platform/oauth2-proxy/namespace.yaml
+
+          # Create secret (if not exists)
+          if ! kubectl get secret oauth2-proxy-secrets -n oauth2-proxy 2>/dev/null; then
+            echo "Creating oauth2-proxy secrets..."
+            kubectl create secret generic oauth2-proxy-secrets \
+              --namespace oauth2-proxy \
+              --from-literal=client-id="${{ secrets.OAUTH2_CLIENT_ID }}" \
+              --from-literal=client-secret="${{ secrets.OAUTH2_CLIENT_SECRET }}" \
+              --from-literal=cookie-secret="${{ secrets.OAUTH2_COOKIE_SECRET }}"
+          else
+            echo "Updating oauth2-proxy secrets..."
+            kubectl create secret generic oauth2-proxy-secrets \
+              --namespace oauth2-proxy \
+              --from-literal=client-id="${{ secrets.OAUTH2_CLIENT_ID }}" \
+              --from-literal=client-secret="${{ secrets.OAUTH2_CLIENT_SECRET }}" \
+              --from-literal=cookie-secret="${{ secrets.OAUTH2_COOKIE_SECRET }}" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
+
+          # Apply configmap, deployment, service, ingress
+          kubectl apply -f platform/oauth2-proxy/configmap.yaml
+          kubectl apply -f platform/oauth2-proxy/deployment.yaml
+          kubectl apply -f platform/oauth2-proxy/ingress.yaml
+
+          # Wait for oauth2-proxy to be ready
+          kubectl wait --for=condition=Available deployment/oauth2-proxy -n oauth2-proxy --timeout=120s || true
+
+      # ===== VERIFICATION =====
+      - name: Verify deployments
+        run: |
+          echo ""
+          echo "========================================"
+          echo "        DEPLOYMENT STATUS"
+          echo "========================================"
+
+          echo ""
+          echo "=== ingress-nginx ==="
+          kubectl get pods -n ingress-nginx
+          kubectl get svc -n ingress-nginx
+
+          echo ""
+          echo "=== cert-manager ==="
+          kubectl get pods -n cert-manager
+          kubectl get clusterissuer
+
+          echo ""
+          echo "=== oauth2-proxy ==="
+          kubectl get pods -n oauth2-proxy
+          kubectl get svc -n oauth2-proxy
+
+          echo ""
+          echo "=== Ingress IP ==="
+          INGRESS_IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "pending")
+          echo "Ingress IP: $INGRESS_IP"
+
+          if [ "$INGRESS_IP" != "pending" ] && [ -n "$INGRESS_IP" ]; then
+            echo ""
+            echo "Apps will be accessible at: http://APP_NAME.$INGRESS_IP.nip.io"
+          fi

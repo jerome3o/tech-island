@@ -1,0 +1,29 @@
+# OAuth2 Proxy needs its own ingress for the /oauth2 paths
+# This handles the login flow and callbacks
+#
+# NOTE: This uses a wildcard host. All apps share the same oauth2-proxy.
+# The cookie domain should match your apps' domain.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy
+  namespace: oauth2-proxy
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Don't apply oauth2-proxy auth to oauth2-proxy itself!
+    # This would create an infinite loop
+spec:
+  ingressClassName: nginx
+  rules:
+    # This handles oauth2 paths for any host
+    # Individual apps don't need their own oauth2 ingress
+    - http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 4180
