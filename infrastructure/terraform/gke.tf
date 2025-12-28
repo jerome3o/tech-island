@@ -63,14 +63,8 @@ resource "google_container_cluster" "primary" {
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
-  # Maintenance window - 3 AM UK time on Sundays
-  maintenance_policy {
-    recurring_window {
-      start_time = "2024-01-01T03:00:00Z"
-      end_time   = "2024-01-01T07:00:00Z"
-      recurrence = "FREQ=WEEKLY;BYDAY=SU"
-    }
-  }
+  # Use default maintenance policy (GCP will auto-schedule)
+  # Custom windows can be too restrictive and cause validation errors
 }
 
 # -----------------------------------------------------------------------------
