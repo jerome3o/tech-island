@@ -1,13 +1,14 @@
 {
   "name": "hello-mcp",
   "version": "1.0.0",
-  "description": "Hello World MCP server for testing deployment",
+  "description": "Hello World MCP server with Google OAuth",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.0.5",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "agents": "^0.0.98",
     "zod": "^3.24.0"
