@@ -145,7 +145,9 @@ async function getCluster(config: GCPConfig, accessToken: string) {
 }
 
 /**
- * List pods in a namespace
+ * List pods in a namespace via Cloud Logging
+ * Note: Direct Kubernetes API access from Cloudflare Workers is blocked due to certificate validation
+ * This uses Cloud Logging to find recent pod activity as a workaround
  */
 export async function listPods(
   config: GCPConfig,
@@ -154,42 +156,71 @@ export async function listPods(
 ): Promise<any> {
   const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
-
-  // Use project ID from credentials if not provided in config
   const projectId = config.projectId || credentials.project_id;
-  const cluster = await getCluster({ ...config, projectId }, accessToken);
 
-  const url = new URL(`https://${cluster.endpoint}/api/v1/namespaces/${namespace}/pods`);
-  if (labelSelector) {
-    url.searchParams.set("labelSelector", labelSelector);
-  }
+  // Query Cloud Logging for recent pod activity
+  const filter = `resource.type="k8s_container" resource.labels.namespace_name="${namespace}" resource.labels.cluster_name="${config.clusterName}"`;
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
+  const url = `https://logging.googleapis.com/v2/entries:list`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      resourceNames: [`projects/${projectId}`],
+      filter,
+      pageSize: 100,
+      orderBy: "timestamp desc",
+    }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Failed to list pods: ${error}`);
+    throw new Error(`Failed to list pods via logging: ${error}`);
   }
 
   const data = await response.json();
 
+  if (!data.entries) {
+    return { items: [], total: 0, note: "No recent pod activity found in logs. Pods may exist but have no recent log entries." };
+  }
+
+  // Extract unique pods from log entries
+  const podMap = new Map();
+  for (const entry of data.entries) {
+    if (entry.resource?.labels?.pod_name) {
+      const podName = entry.resource.labels.pod_name;
+      const containerName = entry.resource.labels.container_name;
+
+      if (!podMap.has(podName)) {
+        podMap.set(podName, {
+          name: podName,
+          namespace: entry.resource.labels.namespace_name || namespace,
+          containers: new Set([containerName]),
+          lastSeen: entry.timestamp,
+        });
+      } else {
+        podMap.get(podName).containers.add(containerName);
+      }
+    }
+  }
+
+  const items = Array.from(podMap.values()).map(pod => ({
+    ...pod,
+    containers: Array.from(pod.containers),
+  }));
+
   return {
-    items: data.items.map((pod: any) => ({
-      name: pod.metadata.name,
-      namespace: pod.metadata.namespace,
-      status: pod.status.phase,
-      restarts: pod.status.containerStatuses?.[0]?.restartCount || 0,
-      age: pod.metadata.creationTimestamp,
-      containers: pod.spec.containers.map((c: any) => c.name),
-    })),
-    total: data.items.length,
+    items,
+    total: items.length,
+    note: "Pod list retrieved from Cloud Logging (shows pods with recent log activity)",
   };
 }
 
 /**
- * Get pod logs
+ * Get pod logs via Cloud Logging
  */
 export async function getPodLogs(
   config: GCPConfig,
@@ -200,18 +231,27 @@ export async function getPodLogs(
 ): Promise<string> {
   const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
-
   const projectId = config.projectId || credentials.project_id;
-  const cluster = await getCluster({ ...config, projectId }, accessToken);
 
-  const url = new URL(`https://${cluster.endpoint}/api/v1/namespaces/${namespace}/pods/${podName}/log`);
-  url.searchParams.set("tailLines", tailLines.toString());
+  // Build filter for Cloud Logging
+  let filter = `resource.type="k8s_container" resource.labels.pod_name="${podName}" resource.labels.namespace_name="${namespace}" resource.labels.cluster_name="${config.clusterName}"`;
   if (container) {
-    url.searchParams.set("container", container);
+    filter += ` resource.labels.container_name="${container}"`;
   }
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
+  const url = `https://logging.googleapis.com/v2/entries:list`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      resourceNames: [`projects/${projectId}`],
+      filter,
+      pageSize: tailLines,
+      orderBy: "timestamp desc",
+    }),
   });
 
   if (!response.ok) {
@@ -219,7 +259,21 @@ export async function getPodLogs(
     throw new Error(`Failed to get pod logs: ${error}`);
   }
 
-  return await response.text();
+  const data = await response.json();
+
+  if (!data.entries || data.entries.length === 0) {
+    return `No log entries found for pod ${podName}${container ? ` container ${container}` : ''}`;
+  }
+
+  // Format logs (reverse to show oldest first)
+  const logs = data.entries.reverse().map((entry: any) => {
+    const timestamp = entry.timestamp || '';
+    const severity = entry.severity || 'INFO';
+    const message = entry.textPayload || JSON.stringify(entry.jsonPayload || entry.protoPayload);
+    return `[${timestamp}] [${severity}] ${message}`;
+  });
+
+  return logs.join('\n');
 }
 
 /**
