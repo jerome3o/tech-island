@@ -5,6 +5,9 @@ metadata:
   labels:
     app: hello-world
   annotations:
+    # TLS via cert-manager
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # OAuth2-proxy authentication
     nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.oauth2-proxy.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
@@ -12,6 +15,10 @@ metadata:
     # Health endpoint auth is skipped by oauth2-proxy config (OAUTH2_PROXY_SKIP_AUTH_ROUTES)
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - hello-world.34.142.82.161.nip.io
+      secretName: hello-world-tls
   rules:
     - host: hello-world.34.142.82.161.nip.io
       http:
