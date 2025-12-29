@@ -34,7 +34,7 @@ export class HelloMCP extends McpAgent {
     const gcpConfig: GCPConfig | null = this.env.GCP_SERVICE_ACCOUNT_KEY
       ? {
           serviceAccountKey: this.env.GCP_SERVICE_ACCOUNT_KEY,
-          projectId: this.env.GCP_PROJECT_ID || "tech-island-447220",
+          projectId: this.env.GCP_PROJECT_ID || "", // Will use project from service account key if empty
           clusterName: this.env.GCP_CLUSTER_NAME || "tech-island",
           region: this.env.GCP_REGION || "europe-west2",
         }
