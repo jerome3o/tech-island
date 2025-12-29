@@ -26,11 +26,11 @@
     ]
   },
 
-  // Durable Object migrations
+  // Durable Object migrations (using new_sqlite_classes for free tier)
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["HelloMCP"]
+      "new_sqlite_classes": ["HelloMCP"]
     }
   ],
 
