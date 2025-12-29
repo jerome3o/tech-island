@@ -3,5 +3,16 @@
   "name": "hello-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2025-01-13",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+
+  // KV namespace for OAuth token storage
+  // Note: You need to create this KV namespace first:
+  //   wrangler kv:namespace create "OAUTH_KV"
+  // Then update the id below with the returned namespace ID
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "YOUR_KV_NAMESPACE_ID"
+    }
+  ]
 }

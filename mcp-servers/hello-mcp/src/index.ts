@@ -1,6 +1,8 @@
+import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { z } from "zod";
+import GoogleHandler from "./google-handler";
 
 // Define the MCP server with tools
 export class HelloMCP extends McpAgent {
@@ -49,46 +51,12 @@ export class HelloMCP extends McpAgent {
   }
 }
 
-// Export the worker
-export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const url = new URL(request.url);
-
-    // Handle SSE endpoint for MCP (matches /sse and /sse/message)
-    if (url.pathname === "/sse" || url.pathname === "/sse/message") {
-      return HelloMCP.serveSSE("/sse").fetch(request, env, ctx);
-    }
-
-    // Handle Streamable HTTP endpoint for MCP
-    if (url.pathname === "/mcp") {
-      return HelloMCP.serve("/mcp").fetch(request, env, ctx);
-    }
-
-    // Health check
-    if (url.pathname === "/health") {
-      return new Response(JSON.stringify({ status: "ok" }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // Root - show info
-    return new Response(
-      JSON.stringify({
-        name: "hello-mcp",
-        version: "1.0.0",
-        endpoints: {
-          sse: "/sse",
-          mcp: "/mcp",
-          health: "/health",
-        },
-        usage: "Connect via /sse (SSE) or /mcp (Streamable HTTP)",
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  },
-};
-
-// Environment type
-interface Env {}
+// Export the OAuth-wrapped worker
+export default new OAuthProvider({
+  apiRoute: "/sse",
+  apiHandler: HelloMCP.serveSSE("/sse"),
+  defaultHandler: GoogleHandler,
+  authorizeEndpoint: "/authorize",
+  tokenEndpoint: "/token",
+  clientRegistrationEndpoint: "/register",
+});
