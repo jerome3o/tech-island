@@ -1,0 +1,20 @@
+{
+  "name": "hello-mcp",
+  "version": "1.0.0",
+  "description": "Hello World MCP server for testing deployment",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "agents": "^0.0.98"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.14.0"
+  }
+}
