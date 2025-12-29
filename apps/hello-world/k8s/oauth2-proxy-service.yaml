@@ -1,0 +1,12 @@
+# ExternalName service to reference oauth2-proxy from apps namespace
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  labels:
+    app: hello-world
+spec:
+  type: ExternalName
+  externalName: oauth2-proxy.oauth2-proxy.svc.cluster.local
+  ports:
+    - port: 4180
