@@ -37,10 +37,10 @@ resource "google_artifact_registry_repository_iam_member" "github_actions_writer
   member     = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
-# Allow GitHub Actions to deploy to GKE
+# Allow GitHub Actions to deploy to GKE (admin needed for RBAC resources)
 resource "google_project_iam_member" "github_actions_gke" {
   project = var.project_id
-  role    = "roles/container.developer"
+  role    = "roles/container.admin"
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
