@@ -9,15 +9,24 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
+interface AuthRequest {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  scope: string;
+  codeChallenge?: string;
+  codeChallengeMethod?: string;
+}
+
 export interface Env {
   OAUTH_KV: KVNamespace;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   COOKIE_ENCRYPTION_KEY: string;
   OAUTH_PROVIDER: {
-    parseAuthRequest(request: Request): Promise<{ clientId: string; redirectUri: string; state: string; scope: string; codeChallenge?: string; codeChallengeMethod?: string }>;
+    parseAuthRequest(request: Request): Promise<AuthRequest>;
     lookupClient(clientId: string): Promise<{ name: string; redirectUris: string[] } | null>;
-    completeAuthorization(options: { request: { clientId: string; redirectUri: string; state: string; scope: string; codeChallenge?: string; codeChallengeMethod?: string }; userId: string; metadata?: Record<string, unknown>; scope: string; props?: Record<string, unknown> }): Promise<{ redirectTo: string }>;
+    completeAuthorization(options: { request: AuthRequest; userId: string; metadata?: Record<string, unknown>; scope: string; props?: Record<string, unknown> }): Promise<Response>;
   };
 }
 
@@ -52,7 +61,7 @@ async function handleAuthorize(request: Request, env: Env): Promise<Response> {
     return new Response("Unknown client", { status: 400 });
   }
 
-  // Store the auth request in KV for the callback
+  // Store the full auth request in KV for the callback (including PKCE values)
   const stateKey = crypto.randomUUID();
   await env.OAUTH_KV.put(
     `auth:${stateKey}`,
@@ -61,6 +70,8 @@ async function handleAuthorize(request: Request, env: Env): Promise<Response> {
       redirectUri: authRequest.redirectUri,
       state: authRequest.state,
       scope: authRequest.scope,
+      codeChallenge: authRequest.codeChallenge,
+      codeChallengeMethod: authRequest.codeChallengeMethod,
     }),
     { expirationTtl: 600 } // 10 minutes
   );
@@ -97,7 +108,7 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   if (!authRequestJson) {
     return new Response("Invalid or expired state", { status: 400 });
   }
-  const authRequest = JSON.parse(authRequestJson);
+  const authRequest: AuthRequest = JSON.parse(authRequestJson);
 
   // Exchange code for tokens with Google
   const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
@@ -134,13 +145,9 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   await env.OAUTH_KV.delete(`auth:${stateKey}`);
 
   // Complete the authorization with the OAuth provider
-  const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
-    request: {
-      clientId: authRequest.clientId,
-      redirectUri: authRequest.redirectUri,
-      state: authRequest.state,
-      scope: authRequest.scope,
-    },
+  // Pass the full auth request including PKCE values, return the response directly
+  return env.OAUTH_PROVIDER.completeAuthorization({
+    request: authRequest,
     userId: userInfo.id,
     metadata: {
       email: userInfo.email,
@@ -151,6 +158,4 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
       accessToken: tokens.access_token,
     },
   });
-
-  return Response.redirect(redirectTo, 302);
 }
