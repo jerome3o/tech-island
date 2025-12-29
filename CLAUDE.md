@@ -1,6 +1,6 @@
 # Tech Island
 
-> A platform for rapidly building and deploying web applications with authentication, databases, and more.
+> A platform for rapidly building and deploying web applications with authentication, TLS, and public URLs.
 
 ## What Is This?
 
@@ -10,6 +10,12 @@ Tech Island is an infrastructure-as-code platform that allows you to:
 3. Have it automatically deployed with Google authentication, TLS, and a public URL
 
 **Your job as an agent**: When asked to build an application, create it in `apps/YOUR_APP_NAME/` following the patterns in this repo. Once you commit and push to `main`, GitHub Actions will deploy it automatically.
+
+## Current Infrastructure
+
+- **Ingress IP**: `34.142.82.161`
+- **App URLs**: `https://APP_NAME.34.142.82.161.nip.io`
+- **Namespace**: Apps deploy to the `apps` namespace
 
 ## Repository Structure
 
@@ -33,18 +39,41 @@ tech-island/
 # 1. Copy the template
 cp -r apps/_template apps/my-app
 
-# 2. Rename all 'app-template' references to 'my-app'
-# In: k8s/*.yaml, package.json, Dockerfile
+# 2. Rename all 'app-template' references to 'my-app' in these files:
+#    - k8s/*.yaml (all yaml files)
+#    - package.json
+#    - Dockerfile (if app name is referenced)
 
 # 3. Implement your app in src/
 
 # 4. Update apps/my-app/CLAUDE.md with app description
 
-# 5. Commit and push
+# 5. Ensure package-lock.json exists (required for npm ci)
+npm install --package-lock-only
+
+# 6. Commit and push
 git add apps/my-app
 git commit -m "Add my-app: description"
 git push origin main
 ```
+
+### What Files Are Required
+
+Every app in `apps/APP_NAME/` MUST have:
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Documentation for future agents |
+| `Dockerfile` | How to build the container |
+| `package.json` + `package-lock.json` | Dependencies (for Node.js apps) |
+| `src/` | Application source code |
+| `k8s/deployment.yaml` | Kubernetes deployment |
+| `k8s/service.yaml` | Kubernetes service |
+| `k8s/ingress.yaml` | Main ingress with auth |
+| `k8s/ingress-oauth2.yaml` | OAuth2 path ingress (prevents redirect loops) |
+| `k8s/oauth2-proxy-service.yaml` | ExternalName service for oauth2-proxy |
+
+**Important**: The `/health` endpoint must return 200 OK (used for health checks and is excluded from auth).
 
 ### Detailed Version
 
@@ -54,8 +83,9 @@ See: `docs/creating-an-app.md`
 
 **All apps are protected by Google authentication by default.**
 
-The authenticated user's email is passed to your app via HTTP header:
+The authenticated user's email is passed to your app via HTTP headers:
 - `X-Auth-Request-User`: User's email address
+- `X-Auth-Request-Email`: User's email (same as above)
 
 Example in Node.js:
 ```javascript
@@ -65,34 +95,7 @@ app.get('/api/whoami', (req, res) => {
 });
 ```
 
-To allow public endpoints (no auth required), see `docs/creating-an-app.md#allowing-public-endpoints`.
-
-## Database
-
-Apps can use the shared PostgreSQL database. Connection string is provided via `DATABASE_URL` environment variable.
-
-To request a database for your app:
-1. Create a secret with the database credentials
-2. Reference it in your deployment.yaml
-
-## App Requirements
-
-Every app MUST have:
-
-1. **`CLAUDE.md`** - Documentation for future agents
-2. **`Dockerfile`** - How to build the container
-3. **`/health` endpoint** - Returns 200 OK (used for health checks)
-4. **`k8s/` directory** - Kubernetes manifests (deployment, service, ingress)
-
-## Key Files to Know
-
-| Path | Purpose |
-|------|---------|
-| `apps/_template/` | Starting point for new apps |
-| `apps/_template/CLAUDE.md` | Template for app documentation |
-| `apps/_template/k8s/` | Kubernetes manifest templates |
-| `docs/gcp-setup.md` | GCP project setup guide |
-| `docs/creating-an-app.md` | Detailed app creation guide |
+**Public endpoints**: The `/health` endpoint is automatically excluded from auth via oauth2-proxy configuration. Other public endpoints are not currently supported without platform changes.
 
 ## Deployment Flow
 
@@ -105,46 +108,22 @@ You create app → Push to main → GitHub Actions triggered
                                       ↓
                               kubectl apply manifests
                                       ↓
-                              App live at: app-name.INGRESS_IP.nip.io
+                              cert-manager provisions TLS
+                                      ↓
+                              App live at: https://app-name.34.142.82.161.nip.io
 ```
-
-## Important Commands
-
-```bash
-# See all apps
-ls apps/
-
-# Check app status (requires kubectl access)
-kubectl get pods -n apps
-kubectl get ingress -n apps
-
-# View app logs
-kubectl logs -n apps -l app=APP_NAME
-
-# Check workflow status
-# Go to: GitHub → Actions tab
-```
-
-## Tech Stack
-
-- **Cloud**: Google Cloud Platform
-- **Orchestration**: Kubernetes (GKE)
-- **Infrastructure**: Terraform
-- **CI/CD**: GitHub Actions
-- **Auth**: OAuth2-Proxy with Google
-- **TLS**: cert-manager with Let's Encrypt
-- **Ingress**: ingress-nginx
-- **Database**: Cloud SQL PostgreSQL
 
 ## Common Tasks
 
 ### "Build me an app that does X"
 
-1. Create `apps/app-name/` by copying template
-2. Implement the app (Node.js, Python, Go - whatever fits)
-3. Write the `CLAUDE.md` documenting what you built
-4. Commit with a clear message: `Add app-name: brief description`
-5. Push to `main`
+1. Copy `apps/_template/` to `apps/app-name/`
+2. Rename all `app-template` references to `app-name`
+3. Implement the app (Node.js, Python, Go - whatever fits)
+4. Write the `CLAUDE.md` documenting what you built
+5. Ensure `package-lock.json` exists (run `npm install --package-lock-only`)
+6. Commit with a clear message: `Add app-name: brief description`
+7. Push to `main`
 
 ### "Add a feature to existing app"
 
@@ -157,14 +136,61 @@ kubectl logs -n apps -l app=APP_NAME
 
 1. Read the app's `CLAUDE.md`
 2. Check the app's code in `apps/app-name/src/`
-3. Check logs if needed (mention you need kubectl access)
+3. If you need logs, ask the user to check GitHub Actions or provide kubectl access
 4. Fix and push
 
-### "Change infrastructure"
+## Debugging Guide
 
-1. Modify files in `infrastructure/terraform/`
-2. Commit and push
-3. The infrastructure workflow will plan/apply
+When something goes wrong, here's how to investigate:
+
+### Deployment Failed
+
+1. Check GitHub Actions logs at: GitHub repo → Actions tab
+2. Common issues:
+   - **npm ci failed**: Missing `package-lock.json` - run `npm install --package-lock-only`
+   - **Docker build failed**: Check Dockerfile syntax and dependencies
+   - **kubectl apply failed**: Check YAML syntax in k8s/ files
+
+### App Not Loading
+
+1. **Redirect loop on /oauth2/start**: Missing `ingress-oauth2.yaml` - the /oauth2 paths need a separate ingress without auth annotations
+2. **TLS certificate errors**: Wait 1-2 minutes for cert-manager to provision; check if `LETSENCRYPT_EMAIL` secret is set
+3. **502 Bad Gateway**: Pod might be crashing - check deployment health
+
+### Auth Not Working
+
+1. Verify Google OAuth redirect URI is set correctly in GCP Console:
+   ```
+   https://APP_NAME.34.142.82.161.nip.io/oauth2/callback
+   ```
+2. Check that both ingress files exist (`ingress.yaml` and `ingress-oauth2.yaml`)
+
+### Questions to Ask the User
+
+If you can't diagnose an issue, ask the user:
+- "Can you check the GitHub Actions logs for the latest deployment?"
+- "Can you verify the OAuth redirect URI in Google Cloud Console includes `https://APP_NAME.34.142.82.161.nip.io/oauth2/callback`?"
+- "Is there a specific error message in the browser?"
+
+## Tech Stack
+
+- **Cloud**: Google Cloud Platform
+- **Orchestration**: Kubernetes (GKE)
+- **Infrastructure**: Terraform
+- **CI/CD**: GitHub Actions (Workload Identity Federation)
+- **Auth**: OAuth2-Proxy with Google
+- **TLS**: cert-manager with Let's Encrypt (auto-provisioned)
+- **Ingress**: ingress-nginx
+
+## Key Files Reference
+
+| Path | Purpose |
+|------|---------|
+| `apps/_template/` | Starting point for new apps - copy this |
+| `apps/_template/CLAUDE.md` | Template for app documentation |
+| `apps/_template/k8s/` | All required Kubernetes manifests |
+| `.github/workflows/deploy-app.yml` | App deployment workflow |
+| `platform/oauth2-proxy/` | OAuth2 proxy configuration |
 
 ## Secrets (Do Not Commit!)
 
@@ -174,24 +200,11 @@ Never commit:
 - API keys
 - Database passwords
 
-These should be in GitHub Secrets or Kubernetes Secrets.
+These are managed in GitHub Secrets and Kubernetes Secrets.
 
-## Getting Help
+## Important Notes
 
-- **GCP Setup**: `docs/gcp-setup.md`
-- **Creating Apps**: `docs/creating-an-app.md`
-- **Platform Components**: Check `platform/*/README.md`
-- **Terraform**: `infrastructure/terraform/README.md`
-
-## For Humans
-
-If you're a human (hi Jerome!), here's what you need to know:
-
-1. **First-time setup**: Follow `docs/gcp-setup.md` to configure GCP and GitHub secrets
-2. **Costs**: Expect ~$65-80/month for the base infrastructure
-3. **To deploy**: Just ask a Claude agent to build you an app!
-4. **To access apps**: After deployment, apps are at `https://APP.INGRESS_IP.nip.io`
-
----
-
-*Last updated: Created for tech-island platform*
+1. **Always include `package-lock.json`** - The build uses `npm ci` which requires it
+2. **Don't use `configuration-snippet` annotations** - They're disabled in ingress-nginx for security
+3. **TLS is automatic** - cert-manager provisions Let's Encrypt certificates automatically
+4. **Each app needs two ingresses** - One for the app (with auth) and one for /oauth2 paths (without auth)
