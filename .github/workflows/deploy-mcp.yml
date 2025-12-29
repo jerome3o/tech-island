@@ -93,15 +93,17 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AUTHORIZED_EMAIL: ${{ secrets.MCP_AUTHORIZED_EMAIL }}
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_MCP_SERVICE_ACCOUNT_KEY }}
         run: |
           # Set AUTHORIZED_EMAIL secret if provided
-          if [ -n "${{ secrets.MCP_AUTHORIZED_EMAIL }}" ]; then
-            echo "${{ secrets.MCP_AUTHORIZED_EMAIL }}" | npx wrangler secret put AUTHORIZED_EMAIL
+          if [ ! -z "$AUTHORIZED_EMAIL" ]; then
+            echo "$AUTHORIZED_EMAIL" | npx wrangler secret put AUTHORIZED_EMAIL
           fi
 
           # Set GCP service account key if provided
-          if [ -n "${{ secrets.GCP_MCP_SERVICE_ACCOUNT_KEY }}" ]; then
-            echo "${{ secrets.GCP_MCP_SERVICE_ACCOUNT_KEY }}" | npx wrangler secret put GCP_SERVICE_ACCOUNT_KEY
+          if [ ! -z "$GCP_SERVICE_ACCOUNT_KEY" ]; then
+            echo "$GCP_SERVICE_ACCOUNT_KEY" | npx wrangler secret put GCP_SERVICE_ACCOUNT_KEY
           fi
 
       - name: Deploy to Cloudflare Workers
