@@ -15,9 +15,9 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   COOKIE_ENCRYPTION_KEY: string;
   OAUTH_PROVIDER: {
-    parseAuthRequest(request: Request): Promise<{ clientId: string; redirectUri: string; state: string; scope: string }>;
+    parseAuthRequest(request: Request): Promise<{ clientId: string; redirectUri: string; state: string; scope: string; codeChallenge?: string; codeChallengeMethod?: string }>;
     lookupClient(clientId: string): Promise<{ name: string; redirectUris: string[] } | null>;
-    completeAuthorization(options: { request: Request; userId: string; metadata: Record<string, unknown>; scope: string; props: { redirectUri: string; state: string } }): Promise<Response>;
+    completeAuthorization(options: { request: { clientId: string; redirectUri: string; state: string; scope: string; codeChallenge?: string; codeChallengeMethod?: string }; userId: string; metadata?: Record<string, unknown>; scope: string; props?: Record<string, unknown> }): Promise<{ redirectTo: string }>;
   };
 }
 
@@ -134,8 +134,13 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   await env.OAUTH_KV.delete(`auth:${stateKey}`);
 
   // Complete the authorization with the OAuth provider
-  return env.OAUTH_PROVIDER.completeAuthorization({
-    request,
+  const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
+    request: {
+      clientId: authRequest.clientId,
+      redirectUri: authRequest.redirectUri,
+      state: authRequest.state,
+      scope: authRequest.scope,
+    },
     userId: userInfo.id,
     metadata: {
       email: userInfo.email,
@@ -143,8 +148,9 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
     },
     scope: authRequest.scope,
     props: {
-      redirectUri: authRequest.redirectUri,
-      state: authRequest.state,
+      accessToken: tokens.access_token,
     },
   });
+
+  return Response.redirect(redirectTo, 302);
 }
