@@ -16,6 +16,24 @@
     }
   ],
 
+  // Durable Object binding for MCP agent state management
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_OBJECT",
+        "class_name": "HelloMCP"
+      }
+    ]
+  },
+
+  // Durable Object migrations
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["HelloMCP"]
+    }
+  ],
+
   // Enable detailed logging for debugging
   "observability": {
     "logs": {
