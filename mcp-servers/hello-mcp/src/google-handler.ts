@@ -141,6 +141,14 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
 
   const userInfo = await userInfoResponse.json() as { id: string; email: string; name: string };
 
+  // Only allow jeromeswannack@gmail.com to access this MCP server
+  if (userInfo.email !== "jeromeswannack@gmail.com") {
+    return new Response("Unauthorized: This MCP server is restricted to authorized users only.", {
+      status: 403,
+      headers: { "Content-Type": "text/plain" }
+    });
+  }
+
   // Clean up the state
   await env.OAUTH_KV.delete(`auth:${stateKey}`);
 
