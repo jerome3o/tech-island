@@ -26,7 +26,7 @@ export interface Env {
   OAUTH_PROVIDER: {
     parseAuthRequest(request: Request): Promise<AuthRequest>;
     lookupClient(clientId: string): Promise<{ name: string; redirectUris: string[] } | null>;
-    completeAuthorization(options: { request: AuthRequest; userId: string; metadata?: Record<string, unknown>; scope: string; props?: Record<string, unknown> }): Promise<Response>;
+    completeAuthorization(options: { request: AuthRequest; userId: string; metadata?: Record<string, unknown>; scope: string; props?: Record<string, unknown> }): Promise<{ redirectTo: string }>;
   };
 }
 
@@ -145,8 +145,8 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   await env.OAUTH_KV.delete(`auth:${stateKey}`);
 
   // Complete the authorization with the OAuth provider
-  // Pass the full auth request including PKCE values, return the response directly
-  return env.OAUTH_PROVIDER.completeAuthorization({
+  // Pass the full auth request including PKCE values
+  const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
     request: authRequest,
     userId: userInfo.id,
     metadata: {
@@ -158,4 +158,7 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
       accessToken: tokens.access_token,
     },
   });
+
+  // Redirect back to the MCP client with the authorization code
+  return Response.redirect(redirectTo, 302);
 }
