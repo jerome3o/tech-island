@@ -154,7 +154,10 @@ export async function listPods(
 ): Promise<any> {
   const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
-  const cluster = await getCluster(config, accessToken);
+
+  // Use project ID from credentials if not provided in config
+  const projectId = config.projectId || credentials.project_id;
+  const cluster = await getCluster({ ...config, projectId }, accessToken);
 
   const url = new URL(`https://${cluster.endpoint}/api/v1/namespaces/${namespace}/pods`);
   if (labelSelector) {
@@ -197,7 +200,9 @@ export async function getPodLogs(
 ): Promise<string> {
   const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
-  const cluster = await getCluster(config, accessToken);
+
+  const projectId = config.projectId || credentials.project_id;
+  const cluster = await getCluster({ ...config, projectId }, accessToken);
 
   const url = new URL(`https://${cluster.endpoint}/api/v1/namespaces/${namespace}/pods/${podName}/log`);
   url.searchParams.set("tailLines", tailLines.toString());
@@ -228,7 +233,9 @@ export async function describeResource(
 ): Promise<any> {
   const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
-  const cluster = await getCluster(config, accessToken);
+
+  const projectId = config.projectId || credentials.project_id;
+  const cluster = await getCluster({ ...config, projectId }, accessToken);
 
   const apiPaths: Record<string, string> = {
     pod: `/api/v1/namespaces/${namespace}/pods/${name}`,
@@ -271,6 +278,7 @@ export async function queryCloudLogs(
   const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
 
+  const projectId = config.projectId || credentials.project_id;
   const url = `https://logging.googleapis.com/v2/entries:list`;
 
   const response = await fetch(url, {
@@ -280,7 +288,7 @@ export async function queryCloudLogs(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      resourceNames: [`projects/${config.projectId}`],
+      resourceNames: [`projects/${projectId}`],
       filter,
       pageSize: limit,
       orderBy: "timestamp desc",
