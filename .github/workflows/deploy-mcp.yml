@@ -99,6 +99,11 @@ jobs:
             echo "${{ secrets.MCP_AUTHORIZED_EMAIL }}" | npx wrangler secret put AUTHORIZED_EMAIL
           fi
 
+          # Set GCP service account key if provided
+          if [ -n "${{ secrets.GCP_MCP_SERVICE_ACCOUNT_KEY }}" ]; then
+            echo "${{ secrets.GCP_MCP_SERVICE_ACCOUNT_KEY }}" | npx wrangler secret put GCP_SERVICE_ACCOUNT_KEY
+          fi
+
       - name: Deploy to Cloudflare Workers
         working-directory: mcp-servers/${{ matrix.server }}
         env:
