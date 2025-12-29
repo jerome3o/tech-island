@@ -4,7 +4,6 @@ import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 import GoogleHandler from "./google-handler";
 import {
-  createGCPClients,
   listPods,
   getPodLogs,
   describeResource,
@@ -37,9 +36,6 @@ export class HelloMCP extends McpAgent {
           region: this.env.GCP_REGION || "europe-west2",
         }
       : null;
-
-    // Initialize GCP clients if credentials are available
-    const gcpClients = gcpConfig ? createGCPClients(gcpConfig) : null;
 
     // Simple greeting tool
     this.server.tool(
@@ -80,7 +76,7 @@ export class HelloMCP extends McpAgent {
     );
 
     // GCP/GKE Tools - only add if credentials are configured
-    if (gcpClients && gcpConfig) {
+    if (gcpConfig) {
       // List pods in a namespace
       this.server.tool(
         "get_pods",
@@ -90,7 +86,7 @@ export class HelloMCP extends McpAgent {
         },
         async ({ namespace, labelSelector }) => {
           try {
-            const pods = await listPods(gcpClients, gcpConfig, namespace, labelSelector);
+            const pods = await listPods(gcpConfig, namespace, labelSelector);
             return {
               content: [
                 {
@@ -124,7 +120,7 @@ export class HelloMCP extends McpAgent {
         },
         async ({ pod, namespace, container, tail }) => {
           try {
-            const logs = await getPodLogs(gcpClients, gcpConfig, pod, namespace, container, tail);
+            const logs = await getPodLogs(gcpConfig, pod, namespace, container, tail);
             return {
               content: [
                 {
@@ -157,7 +153,7 @@ export class HelloMCP extends McpAgent {
         },
         async ({ kind, name, namespace }) => {
           try {
-            const resource = await describeResource(gcpClients, gcpConfig, kind, name, namespace);
+            const resource = await describeResource(gcpConfig, kind, name, namespace);
             return {
               content: [
                 {
@@ -189,7 +185,7 @@ export class HelloMCP extends McpAgent {
         },
         async ({ filter, limit }) => {
           try {
-            const logs = await queryCloudLogs(gcpClients, gcpConfig, filter, limit);
+            const logs = await queryCloudLogs(gcpConfig, filter, limit);
             return {
               content: [
                 {
