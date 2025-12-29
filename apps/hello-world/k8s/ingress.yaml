@@ -19,8 +19,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    # Replace INGRESS_IP with actual IP after deployment
-    - host: hello-world.INGRESS_IP.nip.io
+    - host: hello-world.34.142.82.161.nip.io
       http:
         paths:
           - path: /
