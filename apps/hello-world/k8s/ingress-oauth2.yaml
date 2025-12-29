@@ -1,0 +1,30 @@
+# Separate ingress for /oauth2 paths - NO AUTH on this ingress
+# This prevents the redirect loop by handling oauth2 paths without auth-request
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-oauth2
+  labels:
+    app: hello-world
+  annotations:
+    # TLS via cert-manager (shares cert with main ingress)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # NO auth annotations here - oauth2-proxy handles its own auth flow
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - hello-world.34.142.82.161.nip.io
+      secretName: hello-world-tls
+  rules:
+    - host: hello-world.34.142.82.161.nip.io
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 4180
