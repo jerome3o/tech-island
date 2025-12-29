@@ -9,13 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.oauth2-proxy.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
     nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,X-Auth-Request-Groups"
-
-    # Allow health endpoint without auth
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      location = /health {
-        proxy_pass http://upstream_balancer;
-        proxy_set_header Host $host;
-      }
+    # Health endpoint auth is skipped by oauth2-proxy config (OAUTH2_PROXY_SKIP_AUTH_ROUTES)
 spec:
   ingressClassName: nginx
   rules:
