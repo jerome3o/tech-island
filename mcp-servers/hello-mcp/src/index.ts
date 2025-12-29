@@ -28,6 +28,9 @@ export class HelloMCP extends McpAgent {
 
   async init() {
     // Get GCP configuration from environment
+    console.log("[MCP] Initializing with env keys:", Object.keys(this.env || {}));
+    console.log("[MCP] GCP_SERVICE_ACCOUNT_KEY present:", !!this.env.GCP_SERVICE_ACCOUNT_KEY);
+
     const gcpConfig: GCPConfig | null = this.env.GCP_SERVICE_ACCOUNT_KEY
       ? {
           serviceAccountKey: this.env.GCP_SERVICE_ACCOUNT_KEY,
@@ -36,6 +39,9 @@ export class HelloMCP extends McpAgent {
           region: this.env.GCP_REGION || "europe-west2",
         }
       : null;
+
+    console.log("[MCP] GCP config created:", !!gcpConfig);
+    console.log("[MCP] Will add GCP tools:", !!gcpConfig);
 
     // Simple greeting tool
     this.server.tool(
