@@ -92,6 +92,7 @@ For servers that need user authentication (e.g., GitHub):
 |--------|-------------|
 | `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
 | `CLOUDFLARE_API_TOKEN` | API token with Workers edit permission |
+| `MCP_AUTHORIZED_EMAIL` | Email address authorized to use the MCP server (e.g., `your@email.com`) |
 
 ## Resources
 

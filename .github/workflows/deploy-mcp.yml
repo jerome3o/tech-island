@@ -88,6 +88,17 @@ jobs:
         working-directory: mcp-servers/${{ matrix.server }}
         run: npm install
 
+      - name: Set Cloudflare secrets
+        working-directory: mcp-servers/${{ matrix.server }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Set AUTHORIZED_EMAIL secret if provided
+          if [ -n "${{ secrets.MCP_AUTHORIZED_EMAIL }}" ]; then
+            echo "${{ secrets.MCP_AUTHORIZED_EMAIL }}" | npx wrangler secret put AUTHORIZED_EMAIL
+          fi
+
       - name: Deploy to Cloudflare Workers
         working-directory: mcp-servers/${{ matrix.server }}
         env:

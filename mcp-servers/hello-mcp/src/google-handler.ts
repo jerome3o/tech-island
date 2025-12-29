@@ -23,6 +23,7 @@ export interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   COOKIE_ENCRYPTION_KEY: string;
+  AUTHORIZED_EMAIL: string;
   OAUTH_PROVIDER: {
     parseAuthRequest(request: Request): Promise<AuthRequest>;
     lookupClient(clientId: string): Promise<{ name: string; redirectUris: string[] } | null>;
@@ -141,8 +142,8 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
 
   const userInfo = await userInfoResponse.json() as { id: string; email: string; name: string };
 
-  // Only allow jeromeswannack@gmail.com to access this MCP server
-  if (userInfo.email !== "jeromeswannack@gmail.com") {
+  // Only allow the authorized email to access this MCP server
+  if (userInfo.email !== env.AUTHORIZED_EMAIL) {
     return new Response("Unauthorized: This MCP server is restricted to authorized users only.", {
       status: 403,
       headers: { "Content-Type": "text/plain" }
