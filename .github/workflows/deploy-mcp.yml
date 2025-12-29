@@ -32,16 +32,30 @@ jobs:
       - name: Detect changed servers
         id: detect
         run: |
+          # Helper function to check if a directory is a valid MCP server
+          is_mcp_server() {
+            [ -f "mcp-servers/$1/wrangler.jsonc" ] || [ -f "mcp-servers/$1/wrangler.json" ] || [ -f "mcp-servers/$1/wrangler.toml" ]
+          }
+
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             if [ "${{ inputs.server }}" == "all" ]; then
-              # Get all MCP server directories
-              SERVERS=$(ls -d mcp-servers/*/ 2>/dev/null | xargs -I {} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
+              # Get all MCP server directories (those with wrangler config)
+              SERVERS=$(ls -d mcp-servers/*/ 2>/dev/null | while read dir; do
+                name=$(basename "$dir")
+                if is_mcp_server "$name"; then
+                  echo "$name"
+                fi
+              done | jq -R -s -c 'split("\n") | map(select(length > 0))')
             else
               SERVERS='["${{ inputs.server }}"]'
             fi
           else
-            # Get changed MCP servers from git diff
-            CHANGED=$(git diff --name-only HEAD~1 HEAD -- mcp-servers/ | cut -d'/' -f2 | sort -u | grep -v '^$' || true)
+            # Get changed MCP servers from git diff, filtering to only valid server directories
+            CHANGED=$(git diff --name-only HEAD~1 HEAD -- mcp-servers/ | cut -d'/' -f2 | sort -u | while read name; do
+              if [ -n "$name" ] && is_mcp_server "$name"; then
+                echo "$name"
+              fi
+            done)
             if [ -z "$CHANGED" ]; then
               SERVERS='[]'
             else
