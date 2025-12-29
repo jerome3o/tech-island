@@ -120,7 +120,7 @@ jobs:
           cd apps/${{ matrix.app }}/k8s
 
           # Update image reference in deployment
-          for file in *.yaml *.yml 2>/dev/null; do
+          for file in *.yaml *.yml; do
             if [ -f "$file" ]; then
               sed -i "s|IMAGE_TAG|${{ github.sha }}|g" "$file"
               sed -i "s|REGISTRY_URL|${{ secrets.ARTIFACT_REGISTRY_URL }}|g" "$file"
