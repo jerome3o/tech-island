@@ -14,5 +14,33 @@
       "binding": "OAUTH_KV",
       "id": "c4a1fd8521294168ad6f55dbf8b8b495"
     }
-  ]
+  ],
+
+  // Durable Object binding for MCP agent state management
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_OBJECT",
+        "class_name": "HelloMCP"
+      }
+    ]
+  },
+
+  // Durable Object migrations
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["HelloMCP"]
+    }
+  ],
+
+  // Enable detailed logging for debugging
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true
+    }
+  }
 }
