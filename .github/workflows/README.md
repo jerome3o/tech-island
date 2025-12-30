@@ -36,7 +36,7 @@ The following GitHub secrets must be configured:
 | `GKE_CLUSTER_NAME` | Name of your GKE cluster |
 | `GKE_CLUSTER_LOCATION` | Region where your GKE cluster is |
 | `GCP_PROJECT_ID` | Your GCP project ID |
-| `TERRAFORM_STATE_BUCKET` | GCS bucket name where Terraform state is stored |
+| `TF_STATE_BUCKET` | GCS bucket name where Terraform state is stored |
 
 These should already be configured if you've deployed apps before.
 
@@ -53,7 +53,7 @@ Common issues:
 **"Failed to get database credentials"**
 - Cloud SQL might not be enabled in Terraform
 - Terraform state might not be accessible
-- Check that `TERRAFORM_STATE_BUCKET` secret is correct
+- Check that `TF_STATE_BUCKET` secret is correct
 
 **"Secret verification failed"**
 - Permissions issue with GKE
