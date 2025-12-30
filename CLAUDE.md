@@ -16,6 +16,7 @@ Tech Island is an infrastructure-as-code platform that allows you to:
 - **Ingress IP**: `34.142.82.161`
 - **App URLs**: `https://APP_NAME.34.142.82.161.nip.io`
 - **Namespace**: Apps deploy to the `apps` namespace
+- **User Database**: Shared PostgreSQL via `user-service` (see below)
 
 ## Repository Structure
 
@@ -96,6 +97,53 @@ app.get('/api/whoami', (req, res) => {
 ```
 
 **Public endpoints**: The `/health` endpoint is automatically excluded from auth via oauth2-proxy configuration. Other public endpoints are not currently supported without platform changes.
+
+## Shared User Database
+
+**All apps share a centralized user database via the `user-service`.**
+
+### Quick Start
+
+```javascript
+// Get current user (auto-creates if new)
+const response = await fetch('http://user-service.apps.svc.cluster.local/api/users/me', {
+  headers: { 'x-auth-request-user': req.headers['x-auth-request-user'] }
+});
+const user = await response.json();
+
+// Update user profile
+await fetch('http://user-service.apps.svc.cluster.local/api/users/me', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-auth-request-user': req.headers['x-auth-request-user']
+  },
+  body: JSON.stringify({
+    display_name: 'John Doe',
+    metadata: { theme: 'dark', notifications: true }
+  })
+});
+```
+
+### Available Endpoints
+
+- `GET /api/users/me` - Get current user (auto-creates if doesn't exist)
+- `PUT /api/users/me` - Update current user profile
+
+**Why use this?**
+- Centralized user data across all apps
+- No need to maintain separate user tables
+- Flexible metadata field for app-specific data
+- Automatic migrations
+
+### Documentation
+
+- **Full docs**: `apps/user-service/CLAUDE.md`
+- **Client libraries**: `apps/user-service/docs/CLIENT.md` (Node.js & Python examples)
+- **Live dashboard**: `https://user-service.34.142.82.161.nip.io`
+- **Internal URL**: `http://user-service.apps.svc.cluster.local` (for app-to-app calls)
+
+**Note**: The user-service follows a privacy-first design - users can only access their own data. No user listing or enumeration endpoints exist.
 
 ## Deployment Flow
 
