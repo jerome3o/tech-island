@@ -86,6 +86,26 @@ app.put('/api/users/me', async (req, res) => {
 
     const { display_name, avatar_url, metadata } = req.body;
 
+    // Input validation
+    if (display_name !== undefined && typeof display_name !== 'string') {
+      return res.status(400).json({ error: 'display_name must be a string' });
+    }
+
+    if (avatar_url !== undefined && typeof avatar_url !== 'string') {
+      return res.status(400).json({ error: 'avatar_url must be a string' });
+    }
+
+    if (metadata !== undefined) {
+      if (typeof metadata !== 'object' || Array.isArray(metadata)) {
+        return res.status(400).json({ error: 'metadata must be an object' });
+      }
+      // Limit metadata size to prevent DoS
+      const metadataStr = JSON.stringify(metadata);
+      if (metadataStr.length > 10000) {
+        return res.status(400).json({ error: 'metadata too large (max 10KB)' });
+      }
+    }
+
     // Build dynamic update query based on provided fields
     const updates = [];
     const values = [email];
@@ -130,54 +150,14 @@ app.put('/api/users/me', async (req, res) => {
   }
 });
 
-// Get user by email (for inter-app queries)
-app.get('/api/users/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-
-    const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error getting user:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// List all users (paginated)
-app.get('/api/users', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const offset = parseInt(req.query.offset) || 0;
-
-    const result = await pool.query(
-      'SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
-
-    const countResult = await pool.query('SELECT COUNT(*) FROM users');
-    const total = parseInt(countResult.rows[0].count);
-
-    res.json({
-      users: result.rows,
-      pagination: {
-        limit,
-        offset,
-        total,
-      },
-    });
-  } catch (error) {
-    console.error('Error listing users:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// SECURITY NOTE: The following endpoints are intentionally NOT implemented:
+//
+// - GET /api/users (list all users) - Privacy violation, allows data scraping
+// - GET /api/users/:email - Allows user enumeration attacks
+//
+// Users can ONLY access their own data via /api/users/me
+// If you need to check if a user exists, use direct database access from your app
+// with proper authorization checks.
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

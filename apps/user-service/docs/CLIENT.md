@@ -37,26 +37,6 @@ class UserServiceClient {
   }
 
   /**
-   * Get user by email
-   * @param {string} email - User email to lookup
-   * @returns {Promise<Object>} User object
-   */
-  async getUserByEmail(email) {
-    const response = await fetch(
-      `${this.baseUrl}/api/users/${encodeURIComponent(email)}`
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`Failed to get user: ${response.statusText}`);
-    }
-
-    return response.json();
-  }
-
-  /**
    * Update current user profile
    * @param {string} email - User email from X-Auth-Request-User header
    * @param {Object} updates - Fields to update (display_name, avatar_url, metadata)
@@ -79,23 +59,9 @@ class UserServiceClient {
     return response.json();
   }
 
-  /**
-   * List all users (paginated)
-   * @param {Object} options - Pagination options
-   * @param {number} options.limit - Max users per page (default: 50, max: 100)
-   * @param {number} options.offset - Number of users to skip
-   * @returns {Promise<Object>} Object with users array and pagination info
-   */
-  async listUsers({ limit = 50, offset = 0 } = {}) {
-    const params = new URLSearchParams({ limit, offset });
-    const response = await fetch(`${this.baseUrl}/api/users?${params}`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to list users: ${response.statusText}`);
-    }
-
-    return response.json();
-  }
+  // SECURITY NOTE: No getUserByEmail() or listUsers() methods
+  // These endpoints don't exist to prevent user enumeration and privacy violations
+  // If you need to check if a user exists, use direct database access with proper authz
 }
 
 module.exports = UserServiceClient;
@@ -187,18 +153,6 @@ class UserServiceClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
-        """Get user by email"""
-        response = await self.client.get(
-            f"{self.base_url}/api/users/{quote(email)}"
-        )
-
-        if response.status_code == 404:
-            return None
-
-        response.raise_for_status()
-        return response.json()
-
     async def update_user(self, email: str, updates: Dict[str, Any]) -> Dict[str, Any]:
         """Update current user profile"""
         response = await self.client.put(
@@ -212,14 +166,9 @@ class UserServiceClient:
         response.raise_for_status()
         return response.json()
 
-    async def list_users(self, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """List all users (paginated)"""
-        response = await self.client.get(
-            f"{self.base_url}/api/users",
-            params={"limit": limit, "offset": offset}
-        )
-        response.raise_for_status()
-        return response.json()
+    # SECURITY NOTE: No get_user_by_email() or list_users() methods
+    # These endpoints don't exist to prevent user enumeration and privacy violations
+    # If you need to check if a user exists, use direct database access with proper authz
 
     async def close(self):
         """Close the HTTP client"""

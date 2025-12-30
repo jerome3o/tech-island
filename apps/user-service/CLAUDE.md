@@ -9,10 +9,10 @@ The user-service provides a centralized user database and REST API that all appl
 **Key Features:**
 - Centralized user database with automatic migrations
 - Auto-creates user records on first access
-- RESTful API for user CRUD operations
+- Privacy-first API (users can only access their own data)
 - Flexible JSONB metadata field for app-specific data
 - Automatic timestamp tracking (created_at, updated_at)
-- Pagination support for user listings
+- Input validation and DoS protection
 
 ## Tech Stack
 
@@ -45,8 +45,27 @@ The `metadata` field is a flexible JSONB column that apps can use to store custo
 | GET | /health | Health check with DB connectivity | No |
 | GET | /api/users/me | Get current user (auto-creates if new) | Yes |
 | PUT | /api/users/me | Update current user profile | Yes |
-| GET | /api/users/:email | Get user by email | Yes |
-| GET | /api/users | List all users (paginated) | Yes |
+
+## Security Model
+
+**IMPORTANT**: This service follows privacy-first design:
+
+- ✅ Users can ONLY access their own data via `/api/users/me`
+- ❌ No user listing endpoint (prevents user enumeration)
+- ❌ No user lookup by email endpoint (prevents privacy violations)
+- ✅ Input validation on all fields (type checking, size limits)
+- ✅ Metadata limited to 10KB to prevent DoS attacks
+
+**Why these endpoints are NOT implemented:**
+- `GET /api/users` - Would allow scraping all user emails (privacy violation)
+- `GET /api/users/:email` - Allows attackers to enumerate valid users
+
+**If you need to check if a user exists:**
+Use direct database access from your app with proper authorization:
+```javascript
+const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+// Only query this if the current user has permission to see this data
+```
 
 ### Example Requests
 
@@ -66,15 +85,6 @@ curl -X PUT https://user-service.34.142.82.161.nip.io/api/users/me \
   }'
 ```
 
-**Get user by email:**
-```bash
-curl https://user-service.34.142.82.161.nip.io/api/users/user@example.com
-```
-
-**List users (paginated):**
-```bash
-curl https://user-service.34.142.82.161.nip.io/api/users?limit=50&offset=0
-```
 
 ## Using from Other Apps
 
@@ -93,16 +103,9 @@ async function getCurrentUser(userEmail) {
   return response.json();
 }
 
-// Get any user by email
-async function getUserByEmail(email) {
-  const response = await fetch(
-    `http://user-service.apps.svc.cluster.local/api/users/${encodeURIComponent(email)}`
-  );
-  if (!response.ok) {
-    throw new Error('User not found');
-  }
-  return response.json();
-}
+// SECURITY NOTE: There is no endpoint to get users by email
+// This is intentional to prevent user enumeration attacks
+// If you need to check if a user exists, use direct DB access with proper authz
 
 // Update current user
 async function updateUser(userEmail, updates) {
