@@ -126,6 +126,9 @@
     <div class="header">
       <h1>👤 User Service</h1>
       <p>Centralized user database for Tech Island</p>
+      <p style="font-size: 0.9em; opacity: 0.8; margin-top: 10px;">
+        <span id="protocol-indicator"></span>
+      </p>
     </div>
 
     <div class="content">
@@ -222,6 +225,16 @@ const user = await response.json();</code></pre>
   </div>
 
   <script>
+    // Show connection security status
+    const protocolIndicator = document.getElementById('protocol-indicator');
+    if (window.location.protocol === 'https:') {
+      protocolIndicator.textContent = '🔒 Secure connection (HTTPS)';
+      protocolIndicator.style.color = '#68d391';
+    } else {
+      protocolIndicator.textContent = '⚠️ Insecure connection (HTTP)';
+      protocolIndicator.style.color = '#fc8181';
+    }
+
     let currentUser = null;
 
     async function loadUser() {
