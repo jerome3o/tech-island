@@ -176,11 +176,30 @@
               <input type="url" id="avatar_url" placeholder="https://example.com/avatar.jpg">
             </div>
             <div class="form-group">
+              <label for="avatar_upload">Upload Avatar Image</label>
+              <input type="file" id="avatar_upload" accept="image/jpeg,image/png,image/gif,image/webp">
+              <p style="font-size: 0.9em; color: #718096; margin-top: 5px;">Max 5MB. Supported: JPG, PNG, GIF, WebP</p>
+            </div>
+            <div class="form-group">
               <label for="metadata">Metadata (JSON)</label>
               <textarea id="metadata" placeholder='{"theme": "dark", "notifications": true}'></textarea>
             </div>
             <button type="submit" class="button">Update Profile</button>
           </form>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="section">
+          <h3 style="color: #e53e3e;">Danger Zone</h3>
+          <div style="background: #fff5f5; border-left: 4px solid #e53e3e; padding: 20px; border-radius: 4px;">
+            <p style="margin-bottom: 15px; color: #742a2a;">
+              <strong>Delete Your Account</strong><br>
+              This action is permanent and cannot be undone. All your data will be deleted.
+            </p>
+            <button id="delete-account-btn" class="button" style="background: #e53e3e;">
+              Delete My Account
+            </button>
+          </div>
         </div>
 
         <!-- API Documentation -->
@@ -263,13 +282,74 @@ const user = await response.json();</code></pre>
       }
     }
 
+    // Handle avatar file upload
+    async function uploadAvatar(file) {
+      // Get file extension
+      const ext = file.name.split('.').pop().toLowerCase();
+
+      // Get signed upload URL
+      const urlResponse = await fetch('/api/users/me/avatar/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contentType: file.type,
+          fileExtension: ext
+        })
+      });
+
+      if (!urlResponse.ok) {
+        const error = await urlResponse.json();
+        throw new Error(error.error || 'Failed to get upload URL');
+      }
+
+      const { uploadUrl, fields, publicUrl } = await urlResponse.json();
+
+      // Upload file to GCS using signed URL
+      const formData = new FormData();
+      Object.entries(fields).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      formData.append('file', file);
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      return publicUrl;
+    }
+
     document.getElementById('update-form').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const updates = {};
       const displayName = document.getElementById('display_name').value;
-      const avatarUrl = document.getElementById('avatar_url').value;
+      let avatarUrl = document.getElementById('avatar_url').value;
       const metadataStr = document.getElementById('metadata').value;
+      const avatarFile = document.getElementById('avatar_upload').files[0];
+
+      // Handle file upload first if present
+      if (avatarFile) {
+        try {
+          document.getElementById('update-message').innerHTML =
+            '<div class="alert alert-info">Uploading avatar...</div>';
+
+          // Validate file size
+          if (avatarFile.size > 5 * 1024 * 1024) {
+            throw new Error('File too large. Maximum size is 5MB.');
+          }
+
+          avatarUrl = await uploadAvatar(avatarFile);
+        } catch (error) {
+          document.getElementById('update-message').innerHTML =
+            '<div class="alert alert-error">Upload failed: ' + error.message + '</div>';
+          return;
+        }
+      }
 
       if (displayName) updates.display_name = displayName;
       if (avatarUrl) updates.avatar_url = avatarUrl;
@@ -307,6 +387,40 @@ const user = await response.json();</code></pre>
       } catch (error) {
         document.getElementById('update-message').innerHTML =
           '<div class="alert alert-error">Failed to update: ' + error.message + '</div>';
+      }
+    });
+
+    // Handle account deletion
+    document.getElementById('delete-account-btn').addEventListener('click', async () => {
+      const confirmed = confirm(
+        'Are you sure you want to delete your account?\n\n' +
+        'This action is PERMANENT and cannot be undone.\n' +
+        'All your data will be deleted immediately.\n\n' +
+        'Type "DELETE" in the next prompt to confirm.'
+      );
+
+      if (!confirmed) return;
+
+      const confirmation = prompt('Type DELETE to confirm account deletion:');
+      if (confirmation !== 'DELETE') {
+        alert('Account deletion cancelled. Confirmation text did not match.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/users/me', {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Delete failed');
+        }
+
+        alert('Your account has been deleted. You will be redirected to the home page.');
+        window.location.href = '/';
+      } catch (error) {
+        alert('Failed to delete account: ' + error.message);
       }
     });
 

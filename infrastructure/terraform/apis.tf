@@ -14,6 +14,7 @@ resource "google_project_service" "required_apis" {
     "iam.googleapis.com",               # IAM
     "iamcredentials.googleapis.com",    # IAM Credentials (for Workload Identity)
     "logging.googleapis.com",           # Cloud Logging (for MCP server)
+    "storage.googleapis.com",           # Cloud Storage (for avatar uploads)
   ])
 
   project            = var.project_id
