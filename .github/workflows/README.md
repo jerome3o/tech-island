@@ -27,18 +27,20 @@ Run this workflow **once** before deploying user-service for the first time.
 
 ### Prerequisites
 
-The following GitHub secrets must be configured:
+**IMPORTANT**: All required secrets should already exist! This workflow uses the same secrets as the infrastructure deployment.
 
-| Secret | Description |
-|--------|-------------|
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Provider for GCP |
-| `GCP_SERVICE_ACCOUNT` | Service account email for GitHub Actions |
-| `GKE_CLUSTER_NAME` | Name of your GKE cluster |
-| `GKE_CLUSTER_LOCATION` | Region where your GKE cluster is |
-| `GCP_PROJECT_ID` | Your GCP project ID |
-| `TF_STATE_BUCKET` | GCS bucket name where Terraform state is stored |
+The following GitHub secrets are required (should already be configured):
 
-These should already be configured if you've deployed apps before.
+| Secret | Description | Also Used By |
+|--------|-------------|--------------|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Provider for GCP | All GCP workflows |
+| `GCP_SERVICE_ACCOUNT` | Service account email for GitHub Actions | All GCP workflows |
+| `GKE_CLUSTER_NAME` | Name of your GKE cluster | deploy-app.yml |
+| `GKE_CLUSTER_LOCATION` | Region where your GKE cluster is | deploy-app.yml |
+| `GCP_PROJECT_ID` | Your GCP project ID | infrastructure.yml |
+| `TF_STATE_BUCKET` | GCS bucket name where Terraform state is stored | **infrastructure.yml** |
+
+**Note for agents**: Do NOT create a new `TERRAFORM_STATE_BUCKET` secret. The existing `TF_STATE_BUCKET` secret (used by `infrastructure.yml`) contains the GCS bucket where Terraform stores its state. This workflow reads from that state to get database credentials.
 
 ### Checking If It Worked
 

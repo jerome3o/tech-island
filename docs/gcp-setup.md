@@ -125,7 +125,7 @@ Add these **Repository secrets**:
 |-------------|-------|-------|
 | `GCP_PROJECT_ID` | `tech-island-123456` | Your GCP project ID |
 | `GCP_SA_KEY` | (JSON key content) | Service account key for bootstrap |
-| `TF_STATE_BUCKET` | `tech-island-tf-state-xxx` | Your state bucket name |
+| `TF_STATE_BUCKET` | `tech-island-tf-state-xxx` | Your state bucket name (used by infrastructure.yml and setup-database-secret.yml) |
 | `GKE_CLUSTER_NAME` | `tech-island` | Cluster name |
 | `GKE_CLUSTER_LOCATION` | `europe-west2` | Cluster region |
 | `GCP_REGION` | `europe-west2` | GCP region |
