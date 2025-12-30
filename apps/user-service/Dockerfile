@@ -33,7 +33,6 @@ COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
 # Copy built application and migrations
-COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/.pgmigrate.json ./
