@@ -54,6 +54,20 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Debug endpoint - shows all auth headers
+app.get('/api/debug/headers', (req, res) => {
+  const authHeaders = {};
+  Object.keys(req.headers).forEach(key => {
+    if (key.toLowerCase().includes('auth') || key.toLowerCase().includes('user')) {
+      authHeaders[key] = req.headers[key];
+    }
+  });
+  res.json({
+    authHeaders,
+    allHeaders: req.headers
+  });
+});
+
 // Get current user (auto-creates if doesn't exist)
 app.get('/api/users/me', async (req, res) => {
   try {
