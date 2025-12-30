@@ -208,3 +208,4 @@ These are managed in GitHub Secrets and Kubernetes Secrets.
 2. **Don't use `configuration-snippet` annotations** - They're disabled in ingress-nginx for security
 3. **TLS is automatic** - cert-manager provisions Let's Encrypt certificates automatically
 4. **Each app needs two ingresses** - One for the app (with auth) and one for /oauth2 paths (without auth)
+5. **Follow security guidelines** - See `SECURITY.md` for privacy and security requirements

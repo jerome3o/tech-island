@@ -1,0 +1,34 @@
+# Separate ingress for /oauth2 paths - NO AUTH on this ingress
+# This prevents redirect loops by handling oauth2 paths without auth-request
+#
+# Replace APP_NAME with your app name (e.g., my-app)
+# The ingress IP is: 34.142.82.161
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-service-oauth2
+  labels:
+    app: user-service
+  annotations:
+    # TLS via cert-manager (shares cert with main ingress)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # NO auth annotations here - oauth2-proxy handles its own auth flow
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - user-service.34.142.82.161.nip.io
+      secretName: user-service-tls
+  rules:
+    - host: user-service.34.142.82.161.nip.io
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 4180
