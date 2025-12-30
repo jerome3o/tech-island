@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const path = require('path');
 
 const execAsync = promisify(exec);
 const app = express();
@@ -17,6 +18,9 @@ const pool = new Pool({
 
 // Middleware
 app.use(express.json());
+
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Logging middleware
 app.use((req, res, next) => {

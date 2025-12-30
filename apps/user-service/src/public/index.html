@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Service - Tech Island</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+    .header p { opacity: 0.9; font-size: 1.1em; }
+    .content { padding: 40px; }
+    .user-card {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+    .user-card h2 { color: #2d3748; margin-bottom: 20px; }
+    .user-info { display: grid; gap: 15px; }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .info-label { font-weight: 600; color: #4a5568; }
+    .info-value { color: #2d3748; }
+    .section {
+      margin-bottom: 40px;
+    }
+    .section h3 {
+      color: #2d3748;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #667eea;
+    }
+    .api-endpoint {
+      background: #f7fafc;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
+    .api-endpoint code {
+      background: #2d3748;
+      color: #68d391;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+    .api-method {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-right: 10px;
+    }
+    .api-method.put { background: #f6ad55; }
+    .button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .button:hover { background: #5a67d8; }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+      font-size: 1em;
+    }
+    .form-group textarea {
+      min-height: 100px;
+      font-family: 'Courier New', monospace;
+    }
+    .alert {
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .alert-success { background: #c6f6d5; border-left: 4px solid #48bb78; color: #22543d; }
+    .alert-error { background: #fed7d7; border-left: 4px solid #f56565; color: #742a2a; }
+    .alert-info { background: #bee3f8; border-left: 4px solid #4299e1; color: #2c5282; }
+    .loading { text-align: center; padding: 40px; color: #4a5568; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>👤 User Service</h1>
+      <p>Centralized user database for Tech Island</p>
+    </div>
+
+    <div class="content">
+      <div id="loading" class="loading">Loading your profile...</div>
+      <div id="main" style="display: none;">
+
+        <!-- User Profile Card -->
+        <div class="user-card">
+          <h2>Your Profile</h2>
+          <div class="user-info">
+            <div class="info-row">
+              <span class="info-label">Email:</span>
+              <span class="info-value" id="user-email">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Display Name:</span>
+              <span class="info-value" id="user-name">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Avatar URL:</span>
+              <span class="info-value" id="user-avatar">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Member Since:</span>
+              <span class="info-value" id="user-created">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Last Updated:</span>
+              <span class="info-value" id="user-updated">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Update Profile Form -->
+        <div class="section">
+          <h3>Update Your Profile</h3>
+          <div id="update-message"></div>
+          <form id="update-form">
+            <div class="form-group">
+              <label for="display_name">Display Name</label>
+              <input type="text" id="display_name" placeholder="Your display name">
+            </div>
+            <div class="form-group">
+              <label for="avatar_url">Avatar URL</label>
+              <input type="url" id="avatar_url" placeholder="https://example.com/avatar.jpg">
+            </div>
+            <div class="form-group">
+              <label for="metadata">Metadata (JSON)</label>
+              <textarea id="metadata" placeholder='{"theme": "dark", "notifications": true}'></textarea>
+            </div>
+            <button type="submit" class="button">Update Profile</button>
+          </form>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="section">
+          <h3>API Endpoints</h3>
+          <div class="alert alert-info">
+            <strong>Base URL:</strong> Use <code>http://user-service.apps.svc.cluster.local</code> for internal cluster calls
+          </div>
+
+          <div class="api-endpoint">
+            <span class="api-method">GET</span>
+            <code>GET /api/users/me</code>
+            <p style="margin-top: 10px; color: #4a5568;">Get current user profile (auto-creates if new)</p>
+          </div>
+
+          <div class="api-endpoint">
+            <span class="api-method put">PUT</span>
+            <code>PUT /api/users/me</code>
+            <p style="margin-top: 10px; color: #4a5568;">Update current user profile (display_name, avatar_url, metadata)</p>
+          </div>
+        </div>
+
+        <!-- Integration Guide -->
+        <div class="section">
+          <h3>Using from Your App</h3>
+          <div class="api-endpoint">
+            <p style="margin-bottom: 10px;"><strong>Node.js Example:</strong></p>
+            <pre style="background: #2d3748; color: #68d391; padding: 15px; border-radius: 4px; overflow-x: auto;"><code>const response = await fetch('http://user-service.apps.svc.cluster.local/api/users/me', {
+  headers: { 'x-auth-request-user': req.headers['x-auth-request-user'] }
+});
+const user = await response.json();</code></pre>
+          </div>
+
+          <div class="api-endpoint">
+            <p><strong>Full Documentation:</strong> <a href="https://github.com/jerome3o/tech-island/blob/main/apps/user-service/CLAUDE.md" target="_blank">apps/user-service/CLAUDE.md</a></p>
+            <p style="margin-top: 5px;"><strong>Client Library:</strong> <a href="https://github.com/jerome3o/tech-island/blob/main/apps/user-service/docs/CLIENT.md" target="_blank">apps/user-service/docs/CLIENT.md</a></p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+
+    async function loadUser() {
+      try {
+        const response = await fetch('/api/users/me');
+        if (!response.ok) throw new Error('Failed to load user');
+
+        currentUser = await response.json();
+
+        document.getElementById('user-email').textContent = currentUser.email;
+        document.getElementById('user-name').textContent = currentUser.display_name || 'Not set';
+        document.getElementById('user-avatar').textContent = currentUser.avatar_url || 'Not set';
+        document.getElementById('user-created').textContent = new Date(currentUser.created_at).toLocaleDateString();
+        document.getElementById('user-updated').textContent = new Date(currentUser.updated_at).toLocaleDateString();
+
+        // Pre-fill form
+        document.getElementById('display_name').value = currentUser.display_name || '';
+        document.getElementById('avatar_url').value = currentUser.avatar_url || '';
+        document.getElementById('metadata').value = JSON.stringify(currentUser.metadata, null, 2);
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main').style.display = 'block';
+      } catch (error) {
+        document.getElementById('loading').innerHTML =
+          '<div class="alert alert-error">Failed to load user profile: ' + error.message + '</div>';
+      }
+    }
+
+    document.getElementById('update-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const updates = {};
+      const displayName = document.getElementById('display_name').value;
+      const avatarUrl = document.getElementById('avatar_url').value;
+      const metadataStr = document.getElementById('metadata').value;
+
+      if (displayName) updates.display_name = displayName;
+      if (avatarUrl) updates.avatar_url = avatarUrl;
+
+      if (metadataStr) {
+        try {
+          updates.metadata = JSON.parse(metadataStr);
+        } catch (error) {
+          document.getElementById('update-message').innerHTML =
+            '<div class="alert alert-error">Invalid JSON in metadata field</div>';
+          return;
+        }
+      }
+
+      try {
+        const response = await fetch('/api/users/me', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Update failed');
+        }
+
+        document.getElementById('update-message').innerHTML =
+          '<div class="alert alert-success">✓ Profile updated successfully!</div>';
+
+        setTimeout(() => {
+          document.getElementById('update-message').innerHTML = '';
+          loadUser();
+        }, 2000);
+
+      } catch (error) {
+        document.getElementById('update-message').innerHTML =
+          '<div class="alert alert-error">Failed to update: ' + error.message + '</div>';
+      }
+    });
+
+    // Load user on page load
+    loadUser();
+  </script>
+</body>
+</html>
