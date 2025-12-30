@@ -11,6 +11,12 @@ Tech Island is an infrastructure-as-code platform that allows you to:
 
 **Your job as an agent**: When asked to build an application, create it in `apps/YOUR_APP_NAME/` following the patterns in this repo. Once you commit and push to `main`, GitHub Actions will deploy it automatically.
 
+**Important for agents**: If you make changes on a feature branch during a session, always provide the user with a pull request link so they can review and merge via GitHub's web UI. The link format is:
+```
+https://github.com/jerome3o/tech-island/compare/main...BRANCH_NAME
+```
+This allows users to create PRs from their phone/tablet without needing git CLI access.
+
 ## Current Infrastructure
 
 - **Ingress IP**: `34.142.82.161`
