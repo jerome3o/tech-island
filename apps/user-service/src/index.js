@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const path = require('path');
+const { Storage } = require('@google-cloud/storage');
 
 const execAsync = promisify(exec);
 const app = express();
@@ -15,6 +16,11 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
+
+// Google Cloud Storage for avatar uploads
+const storage = new Storage();
+const BUCKET_NAME = process.env.AVATAR_BUCKET_NAME || 'default-bucket';
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
 
 // Middleware
 app.use(express.json());
@@ -151,6 +157,94 @@ app.put('/api/users/me', async (req, res) => {
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete current user account
+app.delete('/api/users/me', async (req, res) => {
+  try {
+    const email = req.headers['x-auth-request-user'];
+
+    if (!email) {
+      return res.status(401).json({ error: 'No authenticated user' });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM users WHERE email = $1 RETURNING email',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully', email: result.rows[0].email });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate signed URL for avatar upload
+app.post('/api/users/me/avatar/upload-url', async (req, res) => {
+  try {
+    const email = req.headers['x-auth-request-user'];
+
+    if (!email) {
+      return res.status(401).json({ error: 'No authenticated user' });
+    }
+
+    const { contentType, fileExtension } = req.body;
+
+    // Validate content type (must be an image)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!contentType || !allowedTypes.includes(contentType)) {
+      return res.status(400).json({
+        error: 'Invalid content type. Must be image/jpeg, image/png, image/gif, or image/webp'
+      });
+    }
+
+    // Validate file extension
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    if (!fileExtension || !allowedExtensions.includes(fileExtension.toLowerCase())) {
+      return res.status(400).json({
+        error: 'Invalid file extension. Must be jpg, jpeg, png, gif, or webp'
+      });
+    }
+
+    // Generate unique filename: avatars/{email-hash}/{timestamp}.{ext}
+    const crypto = require('crypto');
+    const emailHash = crypto.createHash('md5').update(email).digest('hex');
+    const timestamp = Date.now();
+    const filename = `avatars/${emailHash}/${timestamp}.${fileExtension}`;
+
+    const bucket = storage.bucket(BUCKET_NAME);
+    const file = bucket.file(filename);
+
+    // Generate signed URL for uploading (valid for 15 minutes)
+    const [signedUrl] = await file.generateSignedPostPolicyV4({
+      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      conditions: [
+        ['content-length-range', 0, MAX_FILE_SIZE],
+        ['eq', '$Content-Type', contentType],
+      ],
+      fields: {
+        'Content-Type': contentType,
+      },
+    });
+
+    // Construct the public URL for the uploaded file
+    const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
+
+    res.json({
+      uploadUrl: signedUrl.url,
+      fields: signedUrl.fields,
+      publicUrl: publicUrl,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    });
+  } catch (error) {
+    console.error('Error generating upload URL:', error);
+    res.status(500).json({ error: 'Failed to generate upload URL' });
   }
 });
 

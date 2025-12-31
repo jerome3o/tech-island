@@ -124,6 +124,7 @@ jobs:
             if [ -f "$file" ]; then
               sed -i "s|IMAGE_TAG|${{ github.sha }}|g" "$file"
               sed -i "s|REGISTRY_URL|${{ secrets.ARTIFACT_REGISTRY_URL }}|g" "$file"
+              sed -i "s|GCP_PROJECT_ID|${{ secrets.GCP_PROJECT_ID }}|g" "$file"
             fi
           done
 

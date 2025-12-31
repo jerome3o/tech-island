@@ -16,7 +16,11 @@ spec:
     metadata:
       labels:
         app: user-service
+      annotations:
+        # Enable Workload Identity for GCS access
+        iam.gke.io/gcp-service-account: tech-island-user-service@GCP_PROJECT_ID.iam.gserviceaccount.com
     spec:
+      serviceAccountName: user-service
       containers:
         - name: app
           image: REGISTRY_URL/user-service:IMAGE_TAG
@@ -33,6 +37,8 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: url
+            - name: AVATAR_BUCKET_NAME
+              value: "GCP_PROJECT_ID-user-avatars"
           resources:
             requests:
               cpu: 50m

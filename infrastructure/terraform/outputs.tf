@@ -102,3 +102,17 @@ output "github_actions_workload_identity_provider" {
   description = "Full provider path for GitHub Actions workflow"
   value       = "projects/${var.project_id}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/providers/${google_iam_workload_identity_pool_provider.github.workload_identity_pool_provider_id}"
 }
+
+# -----------------------------------------------------------------------------
+# Storage Outputs
+# -----------------------------------------------------------------------------
+
+output "user_avatars_bucket" {
+  description = "Name of the GCS bucket for user avatars"
+  value       = google_storage_bucket.user_avatars.name
+}
+
+output "user_service_service_account" {
+  description = "Service account email for user-service"
+  value       = google_service_account.user_service.email
+}
