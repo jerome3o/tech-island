@@ -334,12 +334,19 @@ const user = await response.json();</code></pre>
 
       const { uploadUrl, fields, publicUrl } = await urlResponse.json();
 
+      // Log for debugging
+      console.log('Signed URL response:', { uploadUrl, fields, publicUrl });
+      console.log('Current origin:', window.location.origin);
+
       // Upload file to GCS using signed URL
       const formData = new FormData();
       Object.entries(fields).forEach(([key, value]) => {
         formData.append(key, value);
       });
       formData.append('file', file);
+
+      console.log('Uploading to:', uploadUrl);
+      console.log('FormData keys:', Array.from(formData.keys()));
 
       let uploadResponse;
       try {
@@ -353,6 +360,7 @@ const user = await response.json();</code></pre>
         err.details = {
           errorType: 'NetworkError',
           message: networkError.message,
+          currentOrigin: window.location.origin,
           possibleCauses: [
             'CORS not configured on GCS bucket (run Infrastructure workflow)',
             'GCS bucket does not exist (run Infrastructure workflow)',
@@ -360,7 +368,9 @@ const user = await response.json();</code></pre>
             'Browser blocking cross-origin request'
           ],
           uploadUrl: uploadUrl.split('?')[0], // Don't include signed params
-          bucket: uploadUrl.match(/storage\.googleapis\.com\/([^/]+)/)?.[1] || 'unknown'
+          bucket: uploadUrl.match(/storage\.googleapis\.com\/([^/]+)/)?.[1] || 'unknown',
+          corsPattern: 'https://*.34.142.82.161.nip.io',
+          hint: 'Check browser console for CORS error details'
         };
         throw err;
       }
