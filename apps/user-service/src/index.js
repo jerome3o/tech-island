@@ -191,7 +191,10 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
     const email = req.headers['x-auth-request-user'];
 
     if (!email) {
-      return res.status(401).json({ error: 'No authenticated user' });
+      return res.status(401).json({
+        error: 'No authenticated user',
+        details: 'X-Auth-Request-User header is missing'
+      });
     }
 
     const { contentType, fileExtension } = req.body;
@@ -200,7 +203,8 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!contentType || !allowedTypes.includes(contentType)) {
       return res.status(400).json({
-        error: 'Invalid content type. Must be image/jpeg, image/png, image/gif, or image/webp'
+        error: 'Invalid content type. Must be image/jpeg, image/png, image/gif, or image/webp',
+        details: `Received content type: ${contentType}`
       });
     }
 
@@ -208,7 +212,18 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
     const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     if (!fileExtension || !allowedExtensions.includes(fileExtension.toLowerCase())) {
       return res.status(400).json({
-        error: 'Invalid file extension. Must be jpg, jpeg, png, gif, or webp'
+        error: 'Invalid file extension. Must be jpg, jpeg, png, gif, or webp',
+        details: `Received extension: ${fileExtension}`
+      });
+    }
+
+    // Check if bucket name is configured
+    if (!BUCKET_NAME || BUCKET_NAME === 'default-bucket') {
+      console.error('AVATAR_BUCKET_NAME environment variable not set or is default');
+      return res.status(500).json({
+        error: 'Storage not configured',
+        details: 'AVATAR_BUCKET_NAME environment variable is not set. Admin needs to deploy Terraform infrastructure.',
+        hint: 'Run the Infrastructure workflow in GitHub Actions to create the GCS bucket'
       });
     }
 
@@ -217,6 +232,8 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
     const emailHash = crypto.createHash('md5').update(email).digest('hex');
     const timestamp = Date.now();
     const filename = `avatars/${emailHash}/${timestamp}.${fileExtension}`;
+
+    console.log(`Generating signed URL for bucket: ${BUCKET_NAME}, file: ${filename}`);
 
     const bucket = storage.bucket(BUCKET_NAME);
     const file = bucket.file(filename);
@@ -244,7 +261,26 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating upload URL:', error);
-    res.status(500).json({ error: 'Failed to generate upload URL' });
+    console.error('Error stack:', error.stack);
+
+    // Provide detailed error information
+    const errorResponse = {
+      error: 'Failed to generate upload URL',
+      details: error.message,
+      errorType: error.constructor.name,
+      bucket: BUCKET_NAME,
+    };
+
+    // Check for common errors
+    if (error.message.includes('Could not load the default credentials')) {
+      errorResponse.hint = 'Workload Identity not configured. Ensure the service account and Workload Identity binding are set up in Terraform.';
+    } else if (error.message.includes('not found') || error.code === 404) {
+      errorResponse.hint = 'GCS bucket does not exist. Run the Infrastructure workflow to create it.';
+    } else if (error.message.includes('Permission denied') || error.code === 403) {
+      errorResponse.hint = 'Service account lacks permissions. Check IAM roles for the user-service service account.';
+    }
+
+    res.status(500).json(errorResponse);
   }
 });
 
