@@ -276,6 +276,8 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
       errorResponse.hint = 'Workload Identity not configured. Ensure the service account and Workload Identity binding are set up in Terraform.';
     } else if (error.message.includes('not found') || error.code === 404) {
       errorResponse.hint = 'GCS bucket does not exist. Run the Infrastructure workflow to create it.';
+    } else if (error.message.includes('iam.serviceAccounts.signBlob')) {
+      errorResponse.hint = 'Service account lacks signBlob permission. Run the Infrastructure workflow to apply the latest Terraform changes that grant iam.serviceAccountTokenCreator role.';
     } else if (error.message.includes('Permission denied') || error.code === 403) {
       errorResponse.hint = 'Service account lacks permissions. Check IAM roles for the user-service service account.';
     }

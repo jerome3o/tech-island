@@ -61,6 +61,13 @@ resource "google_service_account_iam_member" "user_service_workload_identity" {
   member             = "serviceAccount:${var.project_id}.svc.id.goog[apps/user-service]"
 }
 
+# Grant service account permission to sign blobs (required for generateSignedPostPolicyV4)
+resource "google_service_account_iam_member" "user_service_token_creator" {
+  service_account_id = google_service_account.user_service.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.user_service.email}"
+}
+
 # -----------------------------------------------------------------------------
 # Public read access for avatars (users upload private, then we make public)
 # -----------------------------------------------------------------------------
