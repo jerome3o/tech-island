@@ -332,20 +332,22 @@ const user = await response.json();</code></pre>
         throw err;
       }
 
-      const { uploadUrl, fields, publicUrl } = await urlResponse.json();
+      const { uploadUrl, method, contentType, publicUrl } = await urlResponse.json();
 
-      // Upload file to GCS using signed URL
-      const formData = new FormData();
-      Object.entries(fields).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      formData.append('file', file);
+      // Log for debugging
+      console.log('Signed URL response:', { uploadUrl, method, contentType, publicUrl });
+      console.log('Current origin:', window.location.origin);
+
+      console.log(`Uploading to: ${uploadUrl} using ${method}`);
 
       let uploadResponse;
       try {
         uploadResponse = await fetch(uploadUrl, {
-          method: 'POST',
-          body: formData
+          method: method || 'PUT',
+          headers: {
+            'Content-Type': contentType,
+          },
+          body: file  // Send file directly, not as FormData
         });
       } catch (networkError) {
         // Network errors (CORS, network failure, etc.)
@@ -353,6 +355,7 @@ const user = await response.json();</code></pre>
         err.details = {
           errorType: 'NetworkError',
           message: networkError.message,
+          currentOrigin: window.location.origin,
           possibleCauses: [
             'CORS not configured on GCS bucket (run Infrastructure workflow)',
             'GCS bucket does not exist (run Infrastructure workflow)',
@@ -360,7 +363,9 @@ const user = await response.json();</code></pre>
             'Browser blocking cross-origin request'
           ],
           uploadUrl: uploadUrl.split('?')[0], // Don't include signed params
-          bucket: uploadUrl.match(/storage\.googleapis\.com\/([^/]+)/)?.[1] || 'unknown'
+          bucket: uploadUrl.match(/storage\.googleapis\.com\/([^/]+)/)?.[1] || 'unknown',
+          corsPattern: 'https://*.34.142.82.161.nip.io',
+          hint: 'Check browser console for CORS error details'
         };
         throw err;
       }

@@ -12,9 +12,12 @@ resource "google_storage_bucket" "user_avatars" {
 
   # CORS configuration for direct browser uploads
   cors {
-    origin          = ["https://*.34.142.82.161.nip.io"]
-    method          = ["GET", "PUT", "POST", "HEAD"]
-    response_header = ["Content-Type", "Content-Length", "ETag", "x-goog-*"]
+    origin          = [
+      "https://user-service.34.142.82.161.nip.io",  # Specific origin for user-service
+      "https://*.34.142.82.161.nip.io"              # Wildcard for all apps
+    ]
+    method          = ["GET", "PUT", "POST", "HEAD", "OPTIONS"]
+    response_header = ["*"]  # Allow all response headers
     max_age_seconds = 3600
   }
 
