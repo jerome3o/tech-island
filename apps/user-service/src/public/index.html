@@ -282,6 +282,33 @@ const user = await response.json();</code></pre>
       }
     }
 
+    // Display detailed error in copyable format
+    function showDetailedError(title, errorData) {
+      const errorJson = JSON.stringify(errorData, null, 2);
+      return `
+        <div class="alert alert-error">
+          <strong>${title}</strong><br><br>
+          <details style="margin-top: 10px;">
+            <summary style="cursor: pointer; font-weight: bold;">📋 Click to see full error details (copyable)</summary>
+            <textarea readonly style="
+              width: 100%;
+              min-height: 150px;
+              margin-top: 10px;
+              font-family: monospace;
+              font-size: 12px;
+              padding: 10px;
+              border: 1px solid #cbd5e0;
+              border-radius: 4px;
+              background: #f7fafc;
+            " onclick="this.select()">${errorJson}</textarea>
+            <p style="font-size: 0.9em; color: #718096; margin-top: 5px;">
+              Click the text area to select all, then copy with Ctrl/Cmd+C
+            </p>
+          </details>
+        </div>
+      `;
+    }
+
     // Handle avatar file upload
     async function uploadAvatar(file) {
       // Get file extension
@@ -299,7 +326,10 @@ const user = await response.json();</code></pre>
 
       if (!urlResponse.ok) {
         const error = await urlResponse.json();
-        throw new Error(error.error || 'Failed to get upload URL');
+        // Throw error with full details attached
+        const err = new Error(error.error || 'Failed to get upload URL');
+        err.details = error;
+        throw err;
       }
 
       const { uploadUrl, fields, publicUrl } = await urlResponse.json();
@@ -317,7 +347,15 @@ const user = await response.json();</code></pre>
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
+        const errorText = await uploadResponse.text();
+        const err = new Error('Failed to upload file to storage');
+        err.details = {
+          status: uploadResponse.status,
+          statusText: uploadResponse.statusText,
+          response: errorText,
+          uploadUrl: uploadUrl.split('?')[0] // Don't include signed params
+        };
+        throw err;
       }
 
       return publicUrl;
@@ -345,8 +383,14 @@ const user = await response.json();</code></pre>
 
           avatarUrl = await uploadAvatar(avatarFile);
         } catch (error) {
-          document.getElementById('update-message').innerHTML =
-            '<div class="alert alert-error">Upload failed: ' + error.message + '</div>';
+          // Show detailed error if available
+          if (error.details) {
+            document.getElementById('update-message').innerHTML =
+              showDetailedError('Upload failed: ' + error.message, error.details);
+          } else {
+            document.getElementById('update-message').innerHTML =
+              '<div class="alert alert-error">Upload failed: ' + error.message + '</div>';
+          }
           return;
         }
       }
