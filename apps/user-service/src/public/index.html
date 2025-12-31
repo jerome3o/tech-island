@@ -346,7 +346,7 @@ const user = await response.json();</code></pre>
           method: method || 'PUT',
           headers: {
             'Content-Type': contentType,
-            'x-goog-content-length-range': `0,${5 * 1024 * 1024}`, // 5MB limit enforced by GCS
+            // Note: x-goog-content-length-range is enforced via signed URL params, not header
           },
           body: file  // Send file directly, not as FormData
         });
