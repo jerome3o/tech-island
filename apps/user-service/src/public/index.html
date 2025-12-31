@@ -346,6 +346,7 @@ const user = await response.json();</code></pre>
           method: method || 'PUT',
           headers: {
             'Content-Type': contentType,
+            // Note: x-goog-content-length-range is enforced via signed URL params, not header
           },
           body: file  // Send file directly, not as FormData
         });
