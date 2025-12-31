@@ -239,23 +239,21 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
     const file = bucket.file(filename);
 
     // Generate signed URL for uploading (valid for 15 minutes)
-    const [signedUrl] = await file.generateSignedPostPolicyV4({
+    // Using PUT method instead of POST policy for better CORS compatibility
+    const [signedUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
       expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-      conditions: [
-        ['content-length-range', 0, MAX_FILE_SIZE],
-        ['eq', '$Content-Type', contentType],
-      ],
-      fields: {
-        'Content-Type': contentType,
-      },
+      contentType: contentType,
     });
 
     // Construct the public URL for the uploaded file
     const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${filename}`;
 
     res.json({
-      uploadUrl: signedUrl.url,
-      fields: signedUrl.fields,
+      uploadUrl: signedUrl,
+      method: 'PUT',  // Tell frontend to use PUT instead of POST
+      contentType: contentType,
       publicUrl: publicUrl,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });

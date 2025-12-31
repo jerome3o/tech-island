@@ -332,27 +332,22 @@ const user = await response.json();</code></pre>
         throw err;
       }
 
-      const { uploadUrl, fields, publicUrl } = await urlResponse.json();
+      const { uploadUrl, method, contentType, publicUrl } = await urlResponse.json();
 
       // Log for debugging
-      console.log('Signed URL response:', { uploadUrl, fields, publicUrl });
+      console.log('Signed URL response:', { uploadUrl, method, contentType, publicUrl });
       console.log('Current origin:', window.location.origin);
 
-      // Upload file to GCS using signed URL
-      const formData = new FormData();
-      Object.entries(fields).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      formData.append('file', file);
-
-      console.log('Uploading to:', uploadUrl);
-      console.log('FormData keys:', Array.from(formData.keys()));
+      console.log(`Uploading to: ${uploadUrl} using ${method}`);
 
       let uploadResponse;
       try {
         uploadResponse = await fetch(uploadUrl, {
-          method: 'POST',
-          body: formData
+          method: method || 'PUT',
+          headers: {
+            'Content-Type': contentType,
+          },
+          body: file  // Send file directly, not as FormData
         });
       } catch (networkError) {
         // Network errors (CORS, network failure, etc.)
