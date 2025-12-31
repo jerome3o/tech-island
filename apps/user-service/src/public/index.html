@@ -341,10 +341,29 @@ const user = await response.json();</code></pre>
       });
       formData.append('file', file);
 
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData
-      });
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          body: formData
+        });
+      } catch (networkError) {
+        // Network errors (CORS, network failure, etc.)
+        const err = new Error('Network error when uploading to storage');
+        err.details = {
+          errorType: 'NetworkError',
+          message: networkError.message,
+          possibleCauses: [
+            'CORS not configured on GCS bucket (run Infrastructure workflow)',
+            'GCS bucket does not exist (run Infrastructure workflow)',
+            'Network connectivity issue',
+            'Browser blocking cross-origin request'
+          ],
+          uploadUrl: uploadUrl.split('?')[0], // Don't include signed params
+          bucket: uploadUrl.match(/storage\.googleapis\.com\/([^/]+)/)?.[1] || 'unknown'
+        };
+        throw err;
+      }
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
