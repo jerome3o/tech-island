@@ -245,6 +245,9 @@ app.post('/api/users/me/avatar/upload-url', async (req, res) => {
       action: 'write',
       expires: Date.now() + 15 * 60 * 1000, // 15 minutes
       contentType: contentType,
+      extensionHeaders: {
+        'x-goog-content-length-range': `0,${MAX_FILE_SIZE}` // Enforce 5MB limit at GCS level
+      }
     });
 
     // Construct the public URL for the uploaded file
