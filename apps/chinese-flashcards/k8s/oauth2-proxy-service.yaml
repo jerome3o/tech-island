@@ -1,0 +1,13 @@
+# ExternalName service to reference oauth2-proxy from apps namespace
+# This allows the ingress to route /oauth2 paths to oauth2-proxy
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  labels:
+    app: app-template
+spec:
+  type: ExternalName
+  externalName: oauth2-proxy.oauth2-proxy.svc.cluster.local
+  ports:
+    - port: 4180
