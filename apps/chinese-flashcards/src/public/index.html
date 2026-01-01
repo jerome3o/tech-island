@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Flashcards</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .user-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            color: #333;
+            max-width: 300px;
+            z-index: 100;
+        }
+
+        .user-info strong {
+            color: #667eea;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-top: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .category-filter {
+            padding: 10px 20px;
+            border: none;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .category-filter:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .category-filter.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .flashcard-container {
+            perspective: 1000px;
+            margin-bottom: 30px;
+        }
+
+        .flashcard {
+            width: 100%;
+            height: 400px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-front {
+            background: white;
+        }
+
+        .card-back {
+            background: #667eea;
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .chinese {
+            font-size: 5em;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .pinyin {
+            font-size: 2em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .card-back .pinyin {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .english {
+            font-size: 1.8em;
+            margin-top: 20px;
+        }
+
+        .category-tag {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .card-back .category-tag {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .hint {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .navigation {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .nav-button {
+            padding: 15px 30px;
+            border: none;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-button:active {
+            transform: translateY(0);
+        }
+
+        .stats {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .chinese {
+                font-size: 3em;
+            }
+
+            .pinyin {
+                font-size: 1.5em;
+            }
+
+            .english {
+                font-size: 1.3em;
+            }
+
+            .flashcard {
+                height: 350px;
+            }
+
+            .user-info {
+                position: static;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="user-info" id="userInfo">
+        Loading user...
+    </div>
+
+    <div class="container">
+        <h1>🇨🇳 Chinese Flashcards</h1>
+        <p class="subtitle">Learn Chinese vocabulary with interactive flashcards</p>
+
+        <div class="controls" id="categories"></div>
+
+        <p class="hint">Click the card to flip it!</p>
+
+        <div class="flashcard-container">
+            <div class="flashcard" id="flashcard">
+                <div class="card-face card-front">
+                    <div class="category-tag" id="categoryFront"></div>
+                    <div class="chinese" id="chineseFront"></div>
+                    <div class="pinyin" id="pinyinFront"></div>
+                </div>
+                <div class="card-face card-back">
+                    <div class="category-tag" id="categoryBack"></div>
+                    <div class="chinese" id="chineseBack"></div>
+                    <div class="pinyin" id="pinyinBack"></div>
+                    <div class="english" id="englishBack"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <button class="nav-button" onclick="previousCard()">⬅️ Previous</button>
+            <button class="nav-button" onclick="randomCard()">🎲 Random</button>
+            <button class="nav-button" onclick="nextCard()">Next ➡️</button>
+        </div>
+
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <script>
+        let allFlashcards = [];
+        let currentFlashcards = [];
+        let currentIndex = 0;
+        let currentCategory = 'all';
+
+        // Fetch user info
+        async function fetchUserInfo() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+                const userInfoDiv = document.getElementById('userInfo');
+
+                if (data.userInfo && data.userInfo.display_name) {
+                    userInfoDiv.innerHTML = `
+                        <strong>👤 ${data.userInfo.display_name}</strong><br>
+                        ${data.email}
+                    `;
+                } else {
+                    userInfoDiv.innerHTML = `<strong>👤 ${data.email}</strong>`;
+                }
+            } catch (error) {
+                console.error('Error fetching user info:', error);
+                document.getElementById('userInfo').innerHTML = '<strong>👤 Guest</strong>';
+            }
+        }
+
+        // Fetch all flashcards
+        async function fetchFlashcards() {
+            try {
+                const response = await fetch('/api/flashcards');
+                const data = await response.json();
+                allFlashcards = data.flashcards;
+                currentFlashcards = allFlashcards;
+                displayCard();
+                updateStats();
+            } catch (error) {
+                console.error('Error fetching flashcards:', error);
+            }
+        }
+
+        // Fetch and display categories
+        async function fetchCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                const data = await response.json();
+                const categoriesDiv = document.getElementById('categories');
+
+                // Add "All" button
+                const allButton = document.createElement('button');
+                allButton.className = 'category-filter active';
+                allButton.textContent = 'All';
+                allButton.onclick = () => filterByCategory('all');
+                categoriesDiv.appendChild(allButton);
+
+                // Add category buttons
+                data.categories.forEach(category => {
+                    const button = document.createElement('button');
+                    button.className = 'category-filter';
+                    button.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+                    button.onclick = () => filterByCategory(category);
+                    categoriesDiv.appendChild(button);
+                });
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+            }
+        }
+
+        // Filter flashcards by category
+        function filterByCategory(category) {
+            currentCategory = category;
+            currentIndex = 0;
+
+            if (category === 'all') {
+                currentFlashcards = allFlashcards;
+            } else {
+                currentFlashcards = allFlashcards.filter(card => card.category === category);
+            }
+
+            // Update active button
+            document.querySelectorAll('.category-filter').forEach(btn => {
+                btn.classList.remove('active');
+                if ((category === 'all' && btn.textContent === 'All') ||
+                    btn.textContent.toLowerCase() === category) {
+                    btn.classList.add('active');
+                }
+            });
+
+            displayCard();
+            updateStats();
+        }
+
+        // Display current card
+        function displayCard() {
+            if (currentFlashcards.length === 0) return;
+
+            const card = currentFlashcards[currentIndex];
+            const flashcardElement = document.getElementById('flashcard');
+
+            // Reset flip
+            flashcardElement.classList.remove('flipped');
+
+            // Update front
+            document.getElementById('chineseFront').textContent = card.chinese;
+            document.getElementById('pinyinFront').textContent = card.pinyin;
+            document.getElementById('categoryFront').textContent = card.category;
+
+            // Update back
+            document.getElementById('chineseBack').textContent = card.chinese;
+            document.getElementById('pinyinBack').textContent = card.pinyin;
+            document.getElementById('englishBack').textContent = card.english;
+            document.getElementById('categoryBack').textContent = card.category;
+        }
+
+        // Navigation functions
+        function nextCard() {
+            currentIndex = (currentIndex + 1) % currentFlashcards.length;
+            displayCard();
+            updateStats();
+        }
+
+        function previousCard() {
+            currentIndex = (currentIndex - 1 + currentFlashcards.length) % currentFlashcards.length;
+            displayCard();
+            updateStats();
+        }
+
+        function randomCard() {
+            currentIndex = Math.floor(Math.random() * currentFlashcards.length);
+            displayCard();
+            updateStats();
+        }
+
+        // Update stats
+        function updateStats() {
+            const statsDiv = document.getElementById('stats');
+            statsDiv.textContent = `Card ${currentIndex + 1} of ${currentFlashcards.length}`;
+        }
+
+        // Flip card on click
+        document.getElementById('flashcard').addEventListener('click', function() {
+            this.classList.toggle('flipped');
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextCard();
+            if (e.key === 'ArrowLeft') previousCard();
+            if (e.key === ' ') {
+                e.preventDefault();
+                document.getElementById('flashcard').classList.toggle('flipped');
+            }
+        });
+
+        // Initialize
+        fetchUserInfo();
+        fetchFlashcards();
+        fetchCategories();
+    </script>
+</body>
+</html>
