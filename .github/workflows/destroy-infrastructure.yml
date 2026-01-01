@@ -1,0 +1,90 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "DESTROY" to confirm deletion of all infrastructure'
+        required: true
+        type: string
+
+env:
+  TF_VERSION: '1.6.0'
+  TF_WORKING_DIR: 'infrastructure/terraform'
+
+# Ensure only one Terraform run at a time
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+
+    steps:
+      - name: Verify Confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "DESTROY" ]; then
+            echo "❌ Confirmation failed. You must type 'DESTROY' exactly."
+            exit 1
+          fi
+          echo "✅ Confirmation verified. Proceeding with destruction..."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        id: init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=terraform/state"
+
+      - name: Terraform Destroy Plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "📋 Generating destruction plan..."
+          terraform plan -destroy -no-color -input=false \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -out=destroy.tfplan
+        continue-on-error: false
+
+      - name: Terraform Destroy
+        id: destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "💣 Destroying infrastructure..."
+          terraform apply -auto-approve destroy.tfplan
+          echo "✅ Infrastructure destroyed successfully"
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "🎉 All GCP resources have been destroyed"
+          echo "💰 Your infrastructure costs should drop to ~$0/month"
+          echo "📊 Check GCP Console to verify all resources are gone"
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ Infrastructure destruction failed"
+          echo "Please check the logs above for errors"
+          echo "You may need to manually delete some resources in GCP Console"
+          exit 1

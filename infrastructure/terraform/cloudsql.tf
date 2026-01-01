@@ -57,7 +57,7 @@ resource "google_sql_database_instance" "postgres" {
     }
   }
 
-  deletion_protection = true # Prevent accidental deletion
+  deletion_protection = false # Disabled for teardown
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
 }
