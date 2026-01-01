@@ -32,8 +32,7 @@ COPY package*.json ./
 # Install production dependencies only
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy built application
-COPY --from=builder /app/dist ./dist
+# Copy application source
 COPY --from=builder /app/src ./src
 
 # Set ownership
